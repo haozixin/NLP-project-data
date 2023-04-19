@@ -7,6 +7,10 @@ import torch.nn as nn
 from transformers import BertModel
 import torch.optim as optim
 import time
+from preprocess import prepare_pairs_data
+
+
+
 
 
 class SSTDataset(Dataset):
@@ -14,7 +18,7 @@ class SSTDataset(Dataset):
     def __init__(self, filename, maxlen):
 
         # Store the contents of the file in a pandas dataframe
-        self.df = pd.read_csv(filename, delimiter='\t')
+        self.df = pd.read_csv(filename, delimiter=',')
 
         # Initialize the BERT tokenizer
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -30,17 +34,28 @@ class SSTDataset(Dataset):
         sentence = self.df.loc[index, 'sentence']
         label = self.df.loc[index, 'label']
 
-        # Preprocessing the text to be suitable for BERT
-        tokens = self.tokenizer.tokenize(sentence)  # Tokenize the sentence
-        tokens = ['[CLS]'] + tokens + [
-            '[SEP]']  # Insering the CLS and SEP token in the beginning and end of the sentence
-        if len(tokens) < self.maxlen:
-            tokens = tokens + ['[PAD]' for _ in range(self.maxlen - len(tokens))]  # Padding sentences
-        else:
-            tokens = tokens[:self.maxlen - 1] + ['[SEP]']  # Prunning the list to be of specified max length
+        # 对sentence进行预处理，先根据【SEP】分句
+        claim = sentence.split("[SEP]")[0]
+        evidence = sentence.split("[SEP]")[1]
 
-        tokens_ids = self.tokenizer.convert_tokens_to_ids(
-            tokens)  # Obtaining the indices of the tokens in the BERT Vocabulary
+        # 对claim和evidence进行分词
+        claim_tokens = self.tokenizer.tokenize(claim)
+        evidence_tokens = self.tokenizer.tokenize(evidence)
+
+        claim_tokens = ['[CLS]'] + claim_tokens + ['[SEP]']
+        evidence_tokens = evidence_tokens + ['[SEP]']
+        if len(claim_tokens) < self.maxlen:
+            claim_tokens = claim_tokens + ['[PAD]' for _ in range(self.maxlen - len(claim_tokens))]
+        else:
+            claim_tokens = claim_tokens[:self.maxlen - 1] + ['[SEP]']
+        if len(evidence_tokens) < self.maxlen:
+            evidence_tokens = evidence_tokens + ['[PAD]' for _ in range(self.maxlen - len(evidence_tokens))]
+        else:
+            evidence_tokens = evidence_tokens[:self.maxlen - 1] + ['[SEP]']
+
+        sentence_tokens = claim_tokens + evidence_tokens
+
+        tokens_ids = self.tokenizer.convert_tokens_to_ids(sentence_tokens)  # Obtaining the indices of the tokens in the BERT Vocabulary
         tokens_ids_tensor = torch.tensor(tokens_ids)  # Converting the list to a pytorch tensor
 
         # Obtaining the attention mask i.e a tensor containing 1s for no padded tokens and 0s for padded ones
@@ -142,26 +157,33 @@ def train(net, criterion, opti, train_loader, dev_loader, max_eps, gpu):
 
 
 if __name__ == "__main__":
+    prepare_pairs_data("data/train-claims.json", "train.csv")
+    prepare_pairs_data("data/dev-claims.json", "dev.csv")
     # Creating instances of training and development set
     # maxlen sets the maximum length a sentence can have
     # any sentence longer than this length is truncated to the maxlen size
-    train_set = SSTDataset(filename='10-train.tsv', maxlen=30)
-    dev_set = SSTDataset(filename='10-dev.tsv', maxlen=30)
+    train_set = SSTDataset(filename='data/train.csv', maxlen=128)
+    dev_set = SSTDataset(filename='data/dev.csv', maxlen=128)
     # Creating intsances of training and development dataloaders
-    train_loader = DataLoader(train_set, batch_size=64, num_workers=2)
-    dev_loader = DataLoader(dev_set, batch_size=64, num_workers=2)
+    # TODO: 交叉验证
+    # train_loader = DataLoader(train_set, batch_size=64, num_workers=2)
+    # dev_loader = DataLoader(dev_set, batch_size=64, num_workers=2)
     print("Done preprocessing training and development data.")
 
-    gpu = 0  # gpu ID
-    print("Creating the sentiment classifier, initialised with pretrained BERT-BASE parameters...")
-    net = SentimentClassifier()
-    net.cuda(gpu)  # Enable gpu support for the model
-    print("Done creating the sentiment classifier.")
 
-    # =======Defining the loss function and optimizer=======
-    criterion = nn.BCEWithLogitsLoss()
-    opti = optim.Adam(net.parameters(), lr=2e-5)
 
-    num_epoch = 2
-    # fine-tune the model
-    train(net, criterion, opti, train_loader, dev_loader, num_epoch, gpu)
+
+    #
+    # gpu = 0  # gpu ID
+    # print("Creating the sentiment classifier, initialised with pretrained BERT-BASE parameters...")
+    # net = SentimentClassifier()
+    # net.cuda(gpu)  # Enable gpu support for the model
+    # print("Done creating the sentiment classifier.")
+    #
+    # # =======Defining the loss function and optimizer=======
+    # criterion = nn.BCEWithLogitsLoss()
+    # opti = optim.Adam(net.parameters(), lr=2e-5)
+    #
+    # num_epoch = 2
+    # # fine-tune the model
+    # train(net, criterion, opti, train_loader, dev_loader, num_epoch, gpu)
