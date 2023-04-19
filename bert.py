@@ -53,6 +53,9 @@ class SSTDataset(Dataset):
         else:
             evidence_tokens = evidence_tokens[:self.maxlen - 1] + ['[SEP]']
 
+        # build segment_ids
+        segment_ids = [0] * len(claim_tokens) + [1] * len(evidence_tokens)
+
         sentence_tokens = claim_tokens + evidence_tokens
 
         tokens_ids = self.tokenizer.convert_tokens_to_ids(sentence_tokens)  # Obtaining the indices of the tokens in the BERT Vocabulary
@@ -61,7 +64,7 @@ class SSTDataset(Dataset):
         # Obtaining the attention mask i.e a tensor containing 1s for no padded tokens and 0s for padded ones
         attn_mask = (tokens_ids_tensor != 0).long()
 
-        return tokens_ids_tensor, attn_mask, label
+        return tokens_ids_tensor, attn_mask, segment_ids, label
 
 
 class SentimentClassifier(nn.Module):
@@ -171,9 +174,6 @@ if __name__ == "__main__":
     print("Done preprocessing training and development data.")
 
 
-
-
-    #
     # gpu = 0  # gpu ID
     # print("Creating the sentiment classifier, initialised with pretrained BERT-BASE parameters...")
     # net = SentimentClassifier()
