@@ -162,12 +162,12 @@ if __name__ == "__main__":
     # Creating instances of training and development set
     # maxlen sets the maximum length a sentence can have
     # any sentence longer than this length is truncated to the maxlen size
-    train_set = SSTDataset(filename='data/train.csv', maxlen=128)
-    dev_set = SSTDataset(filename='data/dev.csv', maxlen=128)
+    train_set = SSTDataset(filename='data/train.csv', maxlen=512)
+    dev_set = SSTDataset(filename='data/dev.csv', maxlen=512)
     # Creating intsances of training and development dataloaders
-    # TODO: 交叉验证
-    # train_loader = DataLoader(train_set, batch_size=64, num_workers=2)
-    # dev_loader = DataLoader(dev_set, batch_size=64, num_workers=2)
+    # TODO: 交叉验证; num_workers 自己本地算的时候可以调大点；这些值最后都要调优
+    train_loader = DataLoader(train_set, batch_size=128, num_workers=5)
+    dev_loader = DataLoader(dev_set, batch_size=128, num_workers=5)
     print("Done preprocessing training and development data.")
 
 

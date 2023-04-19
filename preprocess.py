@@ -1,6 +1,6 @@
 import json
 import csv
-# train-claims.json 有1228条数据
+# train-claims.json 有1228条数据 最长的332 chars - 49 words
 # 拆成claim和evidence数据对后有4122条数据
 # evidence.json 有 1208827条数据 最长的是3148 chars - 479 words
 # dev-claims.json 有 154条数据
@@ -40,7 +40,14 @@ def prepare_pairs_data(train_or_dev_claims_path, new_file_name):
 if __name__=="__main__":
     # 读取JSON文件
     # data = read_json_file("data/test-claims-unlabelled.json")
-    prepare_pairs_data("data/train-claims.json", "train.csv")
+    value = prepare_pairs_data("data/train-claims.json", "train.csv")
+    # 找出claim最长的
+
+    for i in value:
+        if len(value[i][0]) == 332:
+            print(value[i][0])
+
+
 
 
 
