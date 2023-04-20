@@ -72,7 +72,7 @@ class SentimentClassifier(nn.Module):
     def __init__(self):
         super(SentimentClassifier, self).__init__()
         # Instantiating BERT model object
-        self.bert_layer = BertModel.from_pretrained('bert-base-uncased')
+        self.bert_layer = BertModel.from_pretrained('bert-base-uncased')  #TODO：可以换'bert-large-uncased'
 
         # Classification layer
         # input dimension is 768 because [CLS] embedding has a dimension of 768
@@ -174,16 +174,20 @@ if __name__ == "__main__":
     print("Done preprocessing training and development data.")
 
 
-    # gpu = 0  # gpu ID
-    # print("Creating the sentiment classifier, initialised with pretrained BERT-BASE parameters...")
-    # net = SentimentClassifier()
-    # net.cuda(gpu)  # Enable gpu support for the model
-    # print("Done creating the sentiment classifier.")
-    #
-    # # =======Defining the loss function and optimizer=======
-    # criterion = nn.BCEWithLogitsLoss()
-    # opti = optim.Adam(net.parameters(), lr=2e-5)
-    #
-    # num_epoch = 2
-    # # fine-tune the model
-    # train(net, criterion, opti, train_loader, dev_loader, num_epoch, gpu)
+    gpu = 0  # gpu ID
+    print("Creating the sentiment classifier, initialised with pretrained BERT-BASE parameters...")
+    net = SentimentClassifier()
+    net.cuda(gpu)  # Enable gpu support for the model
+    print("Done creating the sentiment classifier.")
+
+
+    # =======Defining the loss function and optimizer=======
+    criterion = nn.BCEWithLogitsLoss()  #TODO: 换损失函数-交叉熵
+    opti = optim.Adam(net.parameters(), lr=2e-5)
+
+    num_epoch = 2
+    # fine-tune the model
+    train(net, criterion, opti, train_loader, dev_loader, num_epoch, gpu)
+
+
+# TODO: 试试 BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=5)
