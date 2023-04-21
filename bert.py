@@ -173,21 +173,21 @@ if __name__ == "__main__":
     dev_loader = DataLoader(dev_set, batch_size=128, num_workers=5)
     print("Done preprocessing training and development data.")
 
-
-    gpu = 0  # gpu ID
-    print("Creating the sentiment classifier, initialised with pretrained BERT-BASE parameters...")
-    net = SentimentClassifier()
-    net.cuda(gpu)  # Enable gpu support for the model
-    print("Done creating the sentiment classifier.")
-
-
-    # =======Defining the loss function and optimizer=======
-    criterion = nn.BCEWithLogitsLoss()  #TODO: 换损失函数-交叉熵
-    opti = optim.Adam(net.parameters(), lr=2e-5)
-
-    num_epoch = 2
-    # fine-tune the model
-    train(net, criterion, opti, train_loader, dev_loader, num_epoch, gpu)
+    #
+    # gpu = 0  # gpu ID
+    # print("Creating the sentiment classifier, initialised with pretrained BERT-BASE parameters...")
+    # net = SentimentClassifier()
+    # net.cuda(gpu)  # Enable gpu support for the model
+    # print("Done creating the sentiment classifier.")
+    #
+    #
+    # # =======Defining the loss function and optimizer=======
+    # criterion = nn.BCEWithLogitsLoss()  #TODO: 换损失函数-交叉熵
+    # opti = optim.Adam(net.parameters(), lr=2e-5)
+    #
+    # num_epoch = 2
+    # # fine-tune the model
+    # train(net, criterion, opti, train_loader, dev_loader, num_epoch, gpu)
 
 
 # TODO: 试试 BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=5)
