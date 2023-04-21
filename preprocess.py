@@ -5,7 +5,7 @@ import pandas as pd
 
 # train-claims.json 有1228条数据 最长的332 chars - 49 words
 # 拆成claim和evidence数据对后有4122条数据
-# evidence.json 有 1208827条数据 最长的是3148 chars - 479 words
+# evidence.json 有 1208827条数据 最长的是3148 chars - 479 words mean
 # dev-claims.json 有 154条数据
 # test-claims.json 有 153条数据
 #
@@ -98,9 +98,52 @@ def check_correctness(generate_data_path, train_or_dev_claims_path):
     print("Correct!")
 
 
+def prepare_test_data(dev_claims_path, new_file_name):
+    # 打开JSON文件
+    with open(dev_claims_path, 'r') as f:
+        # 读取JSON数据 - 字典
+        predict_claims = json.load(f)
+
+    # 打开evidence.json文件
+    with open("data/evidence.json", 'r') as f:
+        # 读取JSON数据 - 字典
+        evidences = json.load(f)
+        num_of_evidences = len(evidences)-1
+
+    result = {}
+    # 遍历claims 和 每个evidence 生成新的数据 #TODO: 记得改回来list(predict_claims.items())[:1]
+    for key, value in list(predict_claims.items())[:1]:
+        print("generate data for key: ", key)
+        for evidences_no in list(evidences.keys())[:1000]:
+            evi_text = evidences[evidences_no]
+            # claim 编号+evidence 编号 (用，连接) = key
+            result[key + ',' + evidences_no] = [value['claim_text'], evi_text]
+
+    # ======================记得删除================================================
+    # 添加有关系的数据对
+        evidences_nos = value['evidences']
+        for evidences_no in evidences_nos:
+            evi_text = evidences[evidences_no]
+            # claim 编号+evidence 编号 (用，连接) = key
+            result[key + ',' + evidences_no] = [value['claim_text'], evi_text]
+
+    # ======================================================================
+
+
+    data = [["id", "sentence"]]
+    for key, value in result.items():
+        data.append([key, value[0] + '[SEP]' + value[1]])
+    # 将result 写入csv文件
+    with open(f"data/{new_file_name}", mode='w', newline='', encoding='utf-8-sig') as f:
+        writer = csv.writer(f)
+        writer.writerows(data)
+
+    return result  # 返回字典 - 例子: value = [claim, evidence]
+
 if __name__=="__main__":
-    check_correctness("data/train.csv", "data/train-claims.json")
-    check_correctness("data/dev.csv", "data/dev-claims.json")
+    prepare_test_data("data/dev-claims.json", "dev_for_predict.csv")
+    # check_correctness("data/train.csv", "data/train-claims.json")
+    # check_correctness("data/dev.csv", "data/dev-claims.json")
 
 
 

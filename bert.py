@@ -54,7 +54,8 @@ class SSTDataset(Dataset):
             evidence_tokens = evidence_tokens[:self.maxlen - 1] + ['[SEP]']
 
         # build segment_ids
-        # segment_ids = [0] * len(claim_tokens) + [1] * len(evidence_tokens)
+        segment_ids = [0] * len(claim_tokens) + [1] * len(evidence_tokens)
+        segment_ids = torch.tensor(segment_ids)
 
         sentence_tokens = claim_tokens + evidence_tokens
 
@@ -64,7 +65,7 @@ class SSTDataset(Dataset):
         # Obtaining the attention mask i.e a tensor containing 1s for no padded tokens and 0s for padded ones
         attn_mask = (tokens_ids_tensor != 0).long()
 
-        return tokens_ids_tensor, attn_mask, label
+        return tokens_ids_tensor, attn_mask, segment_ids, label
 
 
 class SentimentClassifier(nn.Module):
@@ -79,7 +80,7 @@ class SentimentClassifier(nn.Module):
         # output dimension is 1 because we're working with a binary classification problem
         self.cls_layer = nn.Linear(768, 1)
 
-    def forward(self, seq, attn_masks):
+    def forward(self, seq, attn_masks, segment_ids):
         '''
         Inputs:
             -seq : Tensor of shape [B, T] containing token ids of sequences
@@ -87,7 +88,7 @@ class SentimentClassifier(nn.Module):
         '''
 
         # Feeding the input to BERT model to obtain contextualized representations
-        outputs = self.bert_layer(seq, attention_mask=attn_masks, return_dict=True)
+        outputs = self.bert_layer(seq, attention_mask=attn_masks, token_type_ids=segment_ids, return_dict=True)
         cont_reps = outputs.last_hidden_state
 
         # Obtaining the representation of [CLS] head (the first token)
@@ -111,9 +112,9 @@ def evaluate(net, criterion, dataloader, gpu):
     count = 0
 
     with torch.no_grad():
-        for seq, attn_masks, labels in dataloader:
-            seq, attn_masks, labels = seq.cuda(gpu), attn_masks.cuda(gpu), labels.cuda(gpu)
-            logits = net(seq, attn_masks)
+        for seq, attn_masks, segment_ids, labels in dataloader:
+            seq, attn_masks, segment_ids, labels = seq.cuda(gpu), attn_masks.cuda(gpu), segment_ids.cuda(gpu), labels.cuda(gpu)
+            logits = net(seq, attn_masks, segment_ids)
             mean_loss += criterion(logits.squeeze(-1), labels.float()).item()
             mean_acc += get_accuracy_from_logits(logits, labels)
             count += 1
@@ -126,14 +127,14 @@ def train(net, criterion, opti, train_loader, dev_loader, max_eps, gpu):
     for ep in range(max_eps):
 
         net.train()
-        for it, (seq, attn_masks, labels) in enumerate(train_loader):
+        for it, (seq, attn_masks, segment_ids, labels) in enumerate(train_loader):
             # Clear gradients
             opti.zero_grad()
             # Converting these to cuda tensors
-            seq, attn_masks, labels = seq.cuda(gpu), attn_masks.cuda(gpu), labels.cuda(gpu)
+            seq, attn_masks, segment_ids, labels = seq.cuda(gpu), attn_masks.cuda(gpu), segment_ids.cuda(gpu), labels.cuda(gpu)
 
             # Obtaining the logits from the model
-            logits = net(seq, attn_masks)
+            logits = net(seq, attn_masks, segment_ids)
 
             # Computing loss
             loss = criterion(logits.squeeze(-1), labels.float())
