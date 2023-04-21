@@ -16,3 +16,5 @@
 3.
 先是二分类，选出evidence, 再多分类，分类
 所以要改前面的preprocess的labels(有关系，没关系)， seg_id 在前半阶段（选evidence）用不到
+
+4. 试试用BertForSequenceClassification 做2分类，BertForMultipleChoice做多分类

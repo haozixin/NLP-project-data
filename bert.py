@@ -54,7 +54,7 @@ class SSTDataset(Dataset):
             evidence_tokens = evidence_tokens[:self.maxlen - 1] + ['[SEP]']
 
         # build segment_ids
-        segment_ids = [0] * len(claim_tokens) + [1] * len(evidence_tokens)
+        # segment_ids = [0] * len(claim_tokens) + [1] * len(evidence_tokens)
 
         sentence_tokens = claim_tokens + evidence_tokens
 
@@ -64,7 +64,7 @@ class SSTDataset(Dataset):
         # Obtaining the attention mask i.e a tensor containing 1s for no padded tokens and 0s for padded ones
         attn_mask = (tokens_ids_tensor != 0).long()
 
-        return tokens_ids_tensor, attn_mask, segment_ids, label
+        return tokens_ids_tensor, attn_mask, label
 
 
 class SentimentClassifier(nn.Module):
@@ -167,12 +167,12 @@ if __name__ == "__main__":
     # Creating instances of training and development set
     # maxlen sets the maximum length a sentence can have
     # any sentence longer than this length is truncated to the maxlen size
-    train_set = SSTDataset(filename='data/train.csv', maxlen=512)
-    dev_set = SSTDataset(filename='data/dev.csv', maxlen=512)
+    train_set = SSTDataset(filename='data/train.csv', maxlen=64)
+    dev_set = SSTDataset(filename='data/dev.csv', maxlen=64)
     # Creating intsances of training and development dataloaders
     # TODO: 交叉验证; num_workers 自己本地算的时候可以调大点；这些值最后都要调优
-    train_loader = DataLoader(train_set, batch_size=128, num_workers=5)
-    dev_loader = DataLoader(dev_set, batch_size=128, num_workers=5)
+    train_loader = DataLoader(train_set, batch_size=32, num_workers=2)
+    dev_loader = DataLoader(dev_set, batch_size=32, num_workers=2)
     print("Done preprocessing training and development data.")
 
     gpu = 0  # gpu ID
