@@ -73,11 +73,34 @@ def data_analise(path):
     print("Data Describe:")
     print(data.describe())
 
+def check_correctness(generate_data_path, train_or_dev_claims_path):
+    # 检查生成的训练集和验证集是否正确
+    train_data = []
+    train_claims = {}
+    with open(generate_data_path, 'r', encoding="utf-8-sig") as f:
+        next(f)
+        train_data = list(csv.reader(f))
+    with open(train_or_dev_claims_path, 'r') as f2:
+        train_claims = json.load(f2)
+
+    for row in train_data:
+        if row[2] == str(HAS_RELATION):
+            claim_id, evidence_id = row[0].split(',')
+            if evidence_id not in train_claims[claim_id]['evidences']:
+                print(f"Error: {row[0]}")
+                return
+        else:
+            claim_id, evidence_id = row[0].split(',')
+            if evidence_id in train_claims[claim_id]['evidences']:
+                print(f"Error: {row[0]}")
+                return
+
+    print("Correct!")
 
 
 if __name__=="__main__":
-    data_analise("data/train.csv")
-    data_analise("data/dev.csv")
+    check_correctness("data/train.csv", "data/train-claims.json")
+    check_correctness("data/dev.csv", "data/dev-claims.json")
 
 
 
