@@ -103,6 +103,8 @@ class Predictor():
             # 2. 将预测概率和值写入到csv文件中
             df['probs'] = all_probs
             df['label'] = all_preds
+            # 选出label为1的数据
+            df = df[df['label'] == 1]
             # 3. 保存csv文件
             df.to_csv(self.output_file_path, index=False, header=False, mode='a')
 
