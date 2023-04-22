@@ -6,9 +6,9 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from transformers import BertTokenizer
-from bert import SentimentClassifier
+from retrieve import SentimentClassifier
 
-MODEL_FILE = "./models/bert_base_64max_32batch_segmentid.dat"
+MODEL_FILE = "./models/bert_base2_128max_55batch_segmentid.dat"
 
 
 class PDataset(Dataset):
@@ -137,10 +137,39 @@ def check_pred(dev_claims_path, output_pred_path):
     print("true_evidences:", true_evidences)
 
 
+def format_preds(preds_path, unlabelled_claims_path, output_path):
+    # 将得到的预测格式化
+    # 读取 output_pred_path
+    df = pd.read_csv(preds_path)
+    # 读取 dev_claims_path
+    with open(unlabelled_claims_path, 'r') as f:
+        # 读取JSON数据 - 字典
+        claims = json.load(f)
+    # 找出output_pred_path中的label为1的句子
+    df_pred = df[df['label'] == 1]
+    claim_id = ''
+    for index, row in df_pred.iterrows():
+        id = row['id']
+        probs = row['probs']
+        claim_id = id.split(',')[0]
+        evidence_id = id.split(',')[1]
+        # 将预测的evidence加入到claims中
+        claims[claim_id]['evidences'].append(evidence_id)
+    # 遍历claims，碰到没有evidence的claim，将随机一个evidence加入到claims中（只是以防错误）
+    for claim_id in claims:
+        if len(claims[claim_id]['evidences']) == 0:
+            claims[claim_id]['evidences'].append("evidence-957389")
+        print("This claim has no evidence claim_id:", claim_id)
+    # 将claims写入到output_path中
+    with open(output_path, 'w') as f:
+        json.dump(claims, f, indent=2, ensure_ascii=False)
+    print("format_preds done!")
+
+
 
 
 if __name__ == '__main__':
-    # maxlen = 64
+    # maxlen = 128
     # predict_dataset_path = "./data/dev_for_predict.csv"
     # output_dataset_path = "./data/dev_for_predict_output.csv"
     # gpu = 0
@@ -149,8 +178,5 @@ if __name__ == '__main__':
 
     check_pred("./data/dev-claims.json", "./data/dev_for_predict_output.csv")
 
-"""
-claim-752
-evidence-89  :  0.9985496401786804
-"Pollution produced from centralised generation of electricity is emitted at a distant power station, rather than \"on site\"."
-"""
+    # format_preds("./data/dev_for_predict_output.csv", "./data/test-claims-unlabelled.json", "./data/test-claims-predictions.json")
+

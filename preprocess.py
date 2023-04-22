@@ -99,6 +99,11 @@ def check_correctness(generate_data_path, train_or_dev_claims_path):
 
 
 def prepare_test_data(dev_claims_path, new_file_name):
+    """
+    生成测试集 - 一对一对的数据
+    :param dev_claims_path: unlabelled 的数据
+    :param new_file_name: 生成的文件 - 为后续预测做准备
+    """
     # 打开JSON文件
     with open(dev_claims_path, 'r') as f:
         # 读取JSON数据 - 字典
