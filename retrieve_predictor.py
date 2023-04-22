@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 
 import pandas as pd
 import torch
@@ -80,16 +81,13 @@ class Predictor():
 
         self.maxlen = maxlen
 
-        predict_dataset = PDataset(predict_dataset_path, self.maxlen)
-        self.length = len(predict_dataset)
-        self.dataloader = DataLoader(predict_dataset, batch_size=20, shuffle=False, num_workers=2)
+        self.predict_dataset = PDataset(predict_dataset_path, self.maxlen)
+        self.dataloader = DataLoader(self.predict_dataset, batch_size=200, shuffle=False, num_workers=4)
 
     def predict(self):
-        print("Predicting...")
         with torch.no_grad():
             all_preds = []
             all_probs = []
-            #  下面的
             for seq, attn_masks, segment_ids in self.dataloader:
                 seq, attn_masks, segment_ids = seq.cuda(self.gpu), attn_masks.cuda(self.gpu), \
                                                        segment_ids.cuda(self.gpu)
@@ -100,18 +98,17 @@ class Predictor():
                 all_preds.extend(soft_probs.squeeze().tolist())  # all_preds是所有预测值的列表
 
 
-            if len(all_preds) != self.length:
-                print("预测值数量不对！")
-                return
-            print("is writing to csv file...")
-            # 将预测值写到原来的csv文件中 - 加一列label
-            # 1. 读取原来的csv文件
-            df = pd.read_csv(self.predict_dataset_path)
+            # 将预测结果写入文件
+            df = self.predict_dataset.df
             # 2. 将预测概率和值写入到csv文件中
             df['probs'] = all_probs
             df['label'] = all_preds
             # 3. 保存csv文件
-            df.to_csv(self.output_file_path, index=False)
+            df.to_csv(self.output_file_path, index=False, header=False, mode='a')
+
+
+
+
 
 
 def check_pred(dev_claims_path, output_pred_path):
@@ -166,17 +163,48 @@ def format_preds(preds_path, unlabelled_claims_path, output_path):
     print("format_preds done!")
 
 
+def predict(dataset_for_predict_path, output_dataset_path):
+    maxlen = 128
+    # predict_dataset_path = "./data/demo_dev_for_predict.csv"
+    # output_dataset_path = "./data/demo_dev_for_predict_output2.csv"
+    gpu = 0
+    chunk_size = 50000
+    # 清理文件
+    if os.path.exists(output_dataset_path):
+        os.remove(output_dataset_path)
+        print("Removed old file: ", output_dataset_path)
+
+    # 用pandas提取dataset_for_predict_path中的标题头
+    df = pd.read_csv(dataset_for_predict_path, nrows=0)
+    # 加入标题probs和label
+    df['probs'] = 0
+    df['label'] = 0
+    # 将标题写入到output_dataset_path中
+    df.to_csv(output_dataset_path, index=False, header=True, mode='w')
+
+    for i, chunk in enumerate(pd.read_csv(dataset_for_predict_path, chunksize=chunk_size)):
+        temp_file_path = f"./data/temp{i}.csv"
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+            print("Removed old file: ", temp_file_path)
+
+        chunk.to_csv(temp_file_path, mode='a', index=False)
+        print("predicting for chunk:", i, " - data in the file:", temp_file_path)
+
+        predictor = Predictor(maxlen, temp_file_path, output_dataset_path, gpu)
+        predictor.predict()
+        print("Done for chunk:", i, " - data in the file:", temp_file_path)
+        # 删除临时文件
+        os.remove(temp_file_path)
+        print("Removed temp file: ", temp_file_path)
 
 
 if __name__ == '__main__':
-    # maxlen = 128
-    # predict_dataset_path = "./data/dev_for_predict.csv"
-    # output_dataset_path = "./data/dev_for_predict_output.csv"
-    # gpu = 0
-    # predictor = Predictor(maxlen, predict_dataset_path, output_dataset_path, gpu)
-    # predictor.predict()
+    dataset_for_predict_path = "./data/test_claims_evi_pairs_for_predict.csv"
+    output_dataset_path = "./test-claims-predictions/test_claims_evi_pairs_for_predict_output.csv"
+    predict(dataset_for_predict_path, output_dataset_path)
 
-    check_pred("./data/dev-claims.json", "./data/dev_for_predict_output.csv")
+    # check_pred("./data/dev-claims.json", "./data/demo_dev_for_predict_output2.csv")
 
-    # format_preds("./data/dev_for_predict_output.csv", "./data/test-claims-unlabelled.json", "./data/test-claims-predictions.json")
+    # format_preds("./data/demo_dev_for_predict_output.csv", "./data/test-claims-unlabelled.json", "./data/test-claims-predictions.json")
 

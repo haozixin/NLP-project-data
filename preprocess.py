@@ -115,38 +115,41 @@ def prepare_test_data(dev_claims_path, new_file_name):
         evidences = json.load(f)
         num_of_evidences = len(evidences)-1
 
-    result = {}
-    # 遍历claims 和 每个evidence 生成新的数据 #TODO: 记得改回来list(predict_claims.items())[:1]
-    for key, value in list(predict_claims.items())[:1]:
-        print("generate data for key: ", key)
-        for evidences_no in list(evidences.keys())[:1000]:
-            evi_text = evidences[evidences_no]
-            # claim 编号+evidence 编号 (用，连接) = key
-            result[key + ',' + evidences_no] = [value['claim_text'], evi_text]
-
-    # ======================记得删除================================================
-    # 添加有关系的数据对
-        evidences_nos = value['evidences']
-        for evidences_no in evidences_nos:
-            evi_text = evidences[evidences_no]
-            # claim 编号+evidence 编号 (用，连接) = key
-            result[key + ',' + evidences_no] = [value['claim_text'], evi_text]
-
-    # ======================================================================
-
-
+    # 清空文件，并写入标题
     data = [["id", "sentence"]]
-    for key, value in result.items():
-        data.append([key, value[0] + '[SEP]' + value[1]])
     # 将result 写入csv文件
     with open(f"data/{new_file_name}", mode='w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
         writer.writerows(data)
 
-    return result  # 返回字典 - 例子: value = [claim, evidence]
+    # 遍历claims 和 每个evidence 生成新的数据
+    for key, value in predict_claims.items():
+        result = {}
+        print("generate data for key: ", key)
+        for evidences_no in evidences.keys():
+            evi_text = evidences[evidences_no]
+            # claim 编号+evidence 编号 (用，连接) = key
+            result[key + ',' + evidences_no] = [value['claim_text'], evi_text]
+    # # ======================记得删除================================================
+    # # 添加有关系的数据对
+    #     evidences_nos = value['evidences']
+    #     for evidences_no in evidences_nos:
+    #         evi_text = evidences[evidences_no]
+    #         # claim 编号+evidence 编号 (用，连接) = key
+    #         result[key + ',' + evidences_no] = [value['claim_text'], evi_text]
+    #
+    # # ======================================================================
+        data = []
+        for key, value in result.items():
+            data.append([key, value[0] + '[SEP]' + value[1]])
+        # 将result 写入csv文件
+        with open(f"data/{new_file_name}", mode='a', newline='', encoding='utf-8-sig') as f:
+            writer = csv.writer(f)
+            writer.writerows(data)
+    print("prepare_test_data Done!")
 
 if __name__=="__main__":
-    prepare_test_data("data/dev-claims.json", "dev_for_predict.csv")
+    prepare_test_data("data/test-claims-unlabelled.json", "test_claims_evi_pairs_for_predict.csv")
     # check_correctness("data/train.csv", "data/train-claims.json")
     # check_correctness("data/dev.csv", "data/dev-claims.json")
 
