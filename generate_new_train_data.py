@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import random
@@ -14,6 +15,7 @@ NO_RELATION = 0
 ERROR_PRED = 5
 
 def generate_new_train_data(train_claims_path, output_path):
+    temp_output_dataset_path = "./data/temp_error_pred.csv"
     # 打开JSON文件
     with open(train_claims_path, 'r') as f:
         # 读取JSON数据 - 字典
@@ -50,9 +52,11 @@ def generate_new_train_data(train_claims_path, output_path):
                 if os.path.exists(temp_path):
                     # delete the file
                     os.remove(temp_path)
-                temp_output_dataset_path = "./data/temp_error_pred.csv"
                 # 写入csv文件
-                pd.DataFrame(batch_result).to_csv(temp_path, index=False, mode='w')
+                # 将result 写入csv文件
+                with open(temp_path, mode='w', newline='', encoding='utf-8-sig') as f:
+                    writer = csv.writer(f)
+                    writer.writerows(batch_result)
                 predict(temp_path, temp_output_dataset_path)
                 # delete the temp file
                 os.remove(temp_path)
@@ -73,7 +77,7 @@ def generate_new_train_data(train_claims_path, output_path):
 
 
 if __name__ == '__main__':
-    generate_new_train_data("./data/train_claims.json", "./data/new_train_data.csv")
+    generate_new_train_data("./data/train-claims.json", "./data/new_train_data.csv")
 
 
 

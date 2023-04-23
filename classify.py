@@ -7,7 +7,7 @@ import torch.nn as nn
 from transformers import BertModel
 import torch.optim as optim
 import time
-from preprocess import prepare_pairs_data
+from preprocess import prepare_train_pairs_data
 
 
 

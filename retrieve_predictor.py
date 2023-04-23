@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import BertTokenizer
 from retrieve import SentimentClassifier
 
-MODEL_FILE = "./models/bert_base2_128max_55batch_segmentid.dat"
+MODEL_FILE = "./models/bert_base_128max_55batch_segmentid_positionid.dat"
 
 
 class PDataset(Dataset):
@@ -61,10 +61,14 @@ class PDataset(Dataset):
         tokens_ids = self.tokenizer.convert_tokens_to_ids(sentence_tokens)  # Obtaining the indices of the tokens in the BERT Vocabulary
         tokens_ids_tensor = torch.tensor(tokens_ids)  # Converting the list to a pytorch tensor
 
+        # position tokens
+        position_ids = [i for i in range(len(tokens_ids))]
+        position_ids = torch.tensor(position_ids)
+
         # Obtaining the attention mask i.e a tensor containing 1s for no padded tokens and 0s for padded ones
         attn_mask = (tokens_ids_tensor != 0).long()
 
-        return tokens_ids_tensor, attn_mask, segment_ids
+        return tokens_ids_tensor, attn_mask, segment_ids, position_ids
 
 
 
@@ -88,12 +92,12 @@ class Predictor():
         with torch.no_grad():
             all_preds = []
             all_probs = []
-            for seq, attn_masks, segment_ids in self.dataloader:
-                seq, attn_masks, segment_ids = seq.cuda(self.gpu), attn_masks.cuda(self.gpu), \
-                                                       segment_ids.cuda(self.gpu)
-                logits = self.classifier(seq, attn_masks, segment_ids)
+            for seq, attn_masks, segment_ids, position_ids in self.dataloader:
+                seq, attn_masks, segment_ids, position_ids = seq.cuda(self.gpu), attn_masks.cuda(self.gpu), \
+                                                       segment_ids.cuda(self.gpu), position_ids.cuda(self.gpu)
+                logits = self.classifier(seq, attn_masks, segment_ids, position_ids)
                 probs = torch.sigmoid(logits.unsqueeze(-1))
-                soft_probs = (probs > 0.98).long()  # 0.9是阈值， soft_probs是预测值 i.e. 0 or 1
+                soft_probs = (probs > 0.99).long()  # 0.9是阈值， soft_probs是预测值 i.e. 0 or 1
                 all_probs.extend(probs.squeeze().tolist())  # all_probs是所有预测值的概率
                 all_preds.extend(soft_probs.squeeze().tolist())  # all_preds是所有预测值的列表
 
@@ -202,8 +206,8 @@ def predict(dataset_for_predict_path, output_dataset_path):
 
 
 if __name__ == '__main__':
-    dataset_for_predict_path = "./data/test_claims_evi_pairs_for_predict.csv"
-    output_dataset_path = "./test-claims-predictions/test_claims_evi_pairs_for_predict_output.csv"
+    dataset_for_predict_path = "./data/demo_dev_claims_evi_pairs_for_predict.csv"
+    output_dataset_path = "./data/output/demo_dev_claims_evi_pairs_for_predict_output.csv"
     predict(dataset_for_predict_path, output_dataset_path)
 
     # check_pred("./data/dev-claims.json", "./data/demo_dev_for_predict_output2.csv")
