@@ -1,5 +1,7 @@
+import math
+
 from torch.utils.data import Dataset
-from transformers import BertTokenizer
+from transformers import BertTokenizer, BertConfig
 import pandas as pd
 from torch.utils.data import DataLoader
 import torch
@@ -8,8 +10,7 @@ from transformers import BertModel
 import torch.optim as optim
 import time
 from preprocess import prepare_train_pairs_data
-
-
+from sklearn.metrics import f1_score
 
 
 
@@ -38,36 +39,31 @@ class SSTDataset(Dataset):
         claim = sentence.split("[SEP]")[0]
         evidence = sentence.split("[SEP]")[1]
 
-        # 对claim和evidence进行分词
-        claim_tokens = self.tokenizer.tokenize(claim)
-        evidence_tokens = self.tokenizer.tokenize(evidence)
+        encoded_input = self.tokenizer.encode_plus(
+            claim,  # 要编码的句子
+            evidence,
+            add_special_tokens=True,  # 添加特殊令牌
+            max_length=self.maxlen,  # 最大长度
+            padding='max_length',  # 填充到最大长度
+            truncation=True,  # 截断输入序列以适合最大长度
+            return_tensors='pt',  # 返回 PyTorch 张量
+        )
 
-        claim_tokens = ['[CLS]'] + claim_tokens + ['[SEP]']
-        evidence_tokens = evidence_tokens + ['[SEP]']
-        if len(claim_tokens) < self.maxlen:
-            claim_tokens = claim_tokens + ['[PAD]' for _ in range(self.maxlen - len(claim_tokens))]
-        else:
-            claim_tokens = claim_tokens[:self.maxlen - 1] + ['[SEP]']
-        if len(evidence_tokens) < self.maxlen:
-            evidence_tokens = evidence_tokens + ['[PAD]' for _ in range(self.maxlen - len(evidence_tokens))]
-        else:
-            evidence_tokens = evidence_tokens[:self.maxlen - 1] + ['[SEP]']
+        # 获取句子的token ids
+        tokens_ids_tensor = encoded_input['input_ids']
+        attn_mask = encoded_input['attention_mask']
+        segment_ids = encoded_input['token_type_ids']
+        tokens_ids = tokens_ids_tensor.tolist()[0]
 
-        # build segment_ids
-        segment_ids = [0] * len(claim_tokens) + [1] * len(evidence_tokens)
-        segment_ids = torch.tensor(segment_ids)
 
-        sentence_tokens = claim_tokens + evidence_tokens
 
-        tokens_ids = self.tokenizer.convert_tokens_to_ids(sentence_tokens)  # Obtaining the indices of the tokens in the BERT Vocabulary
-        tokens_ids_tensor = torch.tensor(tokens_ids)  # Converting the list to a pytorch tensor
+
 
         # position tokens
         position_ids = [i for i in range(len(tokens_ids))]
         position_ids = torch.tensor(position_ids)
 
-        # Obtaining the attention mask i.e a tensor containing 1s for no padded tokens and 0s for padded ones
-        attn_mask = (tokens_ids_tensor != 0).long()
+
 
         return tokens_ids_tensor, attn_mask, segment_ids, position_ids, label
 
@@ -77,7 +73,15 @@ class SentimentClassifier(nn.Module):
     def __init__(self):
         super(SentimentClassifier, self).__init__()
         # Instantiating BERT model object
-        self.bert_layer = BertModel.from_pretrained('bert-base-uncased')  #TODO：可以换'bert-large-uncased'
+        self.config = BertConfig.from_pretrained('bert-base-uncased')
+        # change config
+        self.config.architectures = ["SiameseBertModel"]
+        # self.config.num_hidden_layers = 6
+        # self.config.attention_probs_dropout_prob = 0.3
+        # self.config.hidden_dropout_prob = 0.3
+
+        self.bert_layer = BertModel.from_pretrained('bert-base-uncased', config=self.config)
+
 
         # Classification layer
         # input dimension is 768 because [CLS] embedding has a dimension of 768
@@ -109,11 +113,18 @@ def get_accuracy_from_logits(logits, labels):
     acc = (soft_probs.squeeze() == labels).float().mean()
     return acc
 
+def get_f1_from_logits(logits, labels):
+    probs = torch.sigmoid(logits.unsqueeze(-1))
+    soft_probs = (probs > 0.5).long()
+    f1 = f1_score(labels, soft_probs.squeeze(), average='weighted')
+    return f1
+
 def evaluate(net, criterion, dataloader, gpu):
     net.eval()
 
     mean_acc, mean_loss = 0, 0
     count = 0
+    f1_score = 0
 
     with torch.no_grad():
         for seq, attn_masks, segment_ids, position_ids, labels in dataloader:
@@ -121,9 +132,11 @@ def evaluate(net, criterion, dataloader, gpu):
             logits = net(seq, attn_masks, segment_ids, position_ids.cuda(gpu))
             mean_loss += criterion(logits.squeeze(-1), labels.float()).item()
             mean_acc += get_accuracy_from_logits(logits, labels)
+            # 计算F1-score
+            f1_score += get_f1_from_logits(logits, labels)
             count += 1
 
-    return mean_acc / count, mean_loss / count
+    return mean_acc / count, mean_loss / count, f1_score / count
 
 def train(net, criterion, opti, train_loader, dev_loader, max_eps, gpu):
     best_acc = 0
@@ -155,8 +168,8 @@ def train(net, criterion, opti, train_loader, dev_loader, max_eps, gpu):
                       .format(it, ep, loss.item(), acc, (time.time() - st)))
                 st = time.time()
 
-        dev_acc, dev_loss = evaluate(net, criterion, dev_loader, gpu)
-        print("Epoch {} complete! Development Accuracy: {}; Development Loss: {}".format(ep, dev_acc, dev_loss))
+        dev_acc, dev_loss, dev_f1 = evaluate(net, criterion, dev_loader, gpu)
+        print("Epoch {} complete! Development Accuracy: {}; Development Loss: {}; F1: {};".format(ep, dev_acc, dev_loss, dev_f1))
         if dev_acc > best_acc:
             print("Best development accuracy improved from {} to {}, saving model...".format(best_acc, dev_acc))
             best_acc = dev_acc
@@ -188,7 +201,7 @@ if __name__ == "__main__":
 
 
     # =======Defining the loss function and optimizer=======
-    criterion = nn.BCEWithLogitsLoss()  #TODO: 第二阶段分类时，换损失函数-交叉熵
+    criterion = nn.BCEWithLogitsLoss()
     opti = optim.Adam(net.parameters(), lr=2e-5)
 
     num_epoch = 2
