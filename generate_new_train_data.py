@@ -12,31 +12,23 @@ from retrieve_predictor import predict
 
 HAS_RELATION = 1
 NO_RELATION = 0
-ERROR_PRED = 5
+ERROR_PRED = 4
 
-def generate_new_train_data(train_claims_path, output_path):
+def generate_new_train_or_dev_data(train_claims_path, output_path):
     temp_output_dataset_path = "./data/temp_error_pred.csv"
     # 打开JSON文件
     with open(train_claims_path, 'r') as f:
         # 读取JSON数据 - 字典
         train_claims = json.load(f)
-
-    # 打开evidence.json文件
-    with open("data/evidence.json", 'r') as f:
-        # 读取JSON数据 - 字典
-        evidences = json.load(f)
-        num_of_evidences = len(evidences) - 1
-
-    if os.path.exists(output_path):
-        # delete the file
-        os.remove(output_path)
-    df = pd.DataFrame(columns=["id", "sentence", "label"])
-    df.to_csv(output_path, index=False, mode='w')
-
+    evidences, num_of_evidences = get_evidence()
+    initialize_output_file(output_path)
 
     for claim_key, claim_value in train_claims.items():
         batch_result = [["id", "sentence"]]
         duplicate = []
+        temp2_path = "./data/temp_output.csv"
+        if os.path.exists(temp2_path):
+            os.remove(temp2_path)
         print("Finding wrong pred for claim_key: ", claim_key)
         while ERROR_PRED:
             random_index = random.randint(0, num_of_evidences)
@@ -47,7 +39,7 @@ def generate_new_train_data(train_claims_path, output_path):
             if evidence_id not in claim_value['evidences']:
                 input = [claim_key+','+evidence_id, claim_value["claim_text"]+'[SEP]'+evidences[evidence_id]]
                 batch_result.append(input)
-            if len(batch_result) >= 1000:
+            if len(batch_result) >= 4000:
                 temp_path = "./data/temp_new_train.csv"
                 if os.path.exists(temp_path):
                     # delete the file
@@ -57,46 +49,57 @@ def generate_new_train_data(train_claims_path, output_path):
                 with open(temp_path, mode='w', newline='', encoding='utf-8-sig') as f:
                     writer = csv.writer(f)
                     writer.writerows(batch_result)
+                # ================以上，暂存输入数据 ===========
+
                 predict(temp_path, temp_output_dataset_path)
                 # delete the temp file
                 os.remove(temp_path)
-
+                # temp_output_dataset_path 文件会在下次调用predict时被覆盖
                 df = pd.read_csv(temp_output_dataset_path)
+                # 只要指定列
+                df = df[["id", "sentence", "label"]]
+                # 把label都变成0
+                df["label"] = 0
+                # 清除batch_result
+                batch_result = [["id", "sentence"]]
 
-                # 如果有N行数据，不包括表头
+                #===============暂存输出数据================
+                # 存储到csv文件
+                df.to_csv(temp2_path, index=False, mode='a', header=False)
+                # 重新读数据
+                df = pd.read_csv(temp2_path, header=None, names=["id", "sentence", "label"])
+                # 如果数据超过N行
                 if df.shape[0] < ERROR_PRED:
                     continue
-                # 存储id和sentence，label列
-                df = df[["id", "sentence", "label"]]
-                # 存储到csv文件
-                df.to_csv(output_path, index=False, mode='a')
+                # ===========达到数量之后，就把数据写入output_path，然后删除temp_path， 然后break======
+                # 写入数据到output_path
+                df.to_csv(output_path, index=False, mode='a', header=False)
+
+                # 删除temp_path
+                os.remove(temp2_path)
+
                 break
-        os.remove(temp_output_dataset_path)
 
 
+def initialize_output_file(output_path):
+    if os.path.exists(output_path):
+        # delete the file
+        os.remove(output_path)
+    df = pd.DataFrame(columns=["id", "sentence", "label"])
+    df.to_csv(output_path, index=False, mode='w')
+
+
+def get_evidence():
+    # 打开evidence.json文件
+    with open("data/evidence.json", 'r') as f:
+        # 读取JSON数据 - 字典
+        evidences = json.load(f)
+        num_of_evidences = len(evidences) - 1
+    return evidences, num_of_evidences
 
 
 if __name__ == '__main__':
-    generate_new_train_data("./data/train-claims.json", "./data/new_train_data.csv")
+    generate_new_train_or_dev_data("./data/dev-claims.json", "./data/new_dev_data.csv")
 
 
-
-
-
-        # evidences_nos = value['evidences']
-        # for evidences_no in evidences_nos:
-        #     evi_text = evidences[evidences_no]
-        #     # claim 编号+evidence 编号 (用，连接) = key
-        #     result[key + ',' + evidences_no] = [value['claim_text'], evi_text, HAS_RELATION]
-        # # 从evidence.json中找出没有被train_claims使用的evidence
-        # # 用于生成没有关系的数据对, 指定生成个数NO_RELATION_NUM
-        # counter = 0
-        # while counter < NO_RELATION_NUM:
-        #     index = random.randint(0, num_of_evidences)
-        #     text_index = list(evidences.keys())[index]
-        #     if text_index in evidences_nos:
-        #         continue
-        #     evi_text = evidences[text_index]
-        #     result[key + ',' + text_index] = [value['claim_text'], evi_text, NO_RELATION]
-        #     counter += 1
 
