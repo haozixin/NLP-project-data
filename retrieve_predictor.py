@@ -74,9 +74,9 @@ class PDataset(Dataset):
 
 
 class Predictor():
-    def __init__(self, maxlen, predict_dataset_path, output_dataset_path, gpu):
-        self.output_file_path = output_dataset_path
-        self.predict_dataset_path = predict_dataset_path
+    def __init__(self, maxlen, gpu):
+
+
         self.classifier = SentimentClassifier()
         self.classifier.load_state_dict(torch.load(MODEL_FILE))
         self.classifier.eval()
@@ -85,12 +85,15 @@ class Predictor():
 
         self.maxlen = maxlen
 
+
+    def predict(self, predict_dataset_path, output_dataset_path):
+        self.output_file_path = output_dataset_path
+        self.predict_dataset_path = predict_dataset_path
         self.predict_dataset = PDataset(predict_dataset_path, self.maxlen)
         self.output_file_path = output_dataset_path
         self.dataloader = DataLoader(self.predict_dataset, batch_size=200, shuffle=False,
                                      num_workers=10)  # TODO:增大worker, 减小batch_size
 
-    def predict(self):
         with torch.no_grad():
             all_preds = []
             all_probs = []
@@ -99,7 +102,7 @@ class Predictor():
                                                        segment_ids.cuda(self.gpu), position_ids.cuda(self.gpu)
                 logits = self.classifier(seq, attn_masks, segment_ids, position_ids)
                 probs = torch.sigmoid(logits.unsqueeze(-1))
-                soft_probs = (probs > 0.97).long()  # 0.9是阈值， soft_probs是预测值 i.e. 0 or 1
+                soft_probs = (probs > 0.975).long()  # 0.9是阈值， soft_probs是预测值 i.e. 0 or 1
                 all_probs.extend(probs.squeeze().tolist())  # all_probs是所有预测值的概率
                 all_preds.extend(soft_probs.squeeze().tolist())  # all_preds是所有预测值的列表
 
@@ -177,6 +180,7 @@ def predict(dataset_for_predict_path, output_dataset_path):
     # output_dataset_path = "./data/demo_dev_for_predict_output2.csv"
     gpu = 0
     chunk_size = 50000
+    predictor = Predictor(maxlen, gpu)
     # 清理文件
     if os.path.exists(output_dataset_path):
         os.remove(output_dataset_path)
@@ -198,8 +202,7 @@ def predict(dataset_for_predict_path, output_dataset_path):
 
         chunk.to_csv(temp_file_path, mode='a', index=False)
         print("predicting for chunk:", i, " - data in the file:", temp_file_path)
-        predictor = Predictor(maxlen, temp_file_path, output_dataset_path, gpu)
-        predictor.predict()
+        predictor.predict(temp_file_path, output_dataset_path)
         print("Done for chunk:", i, " - data in the file:", temp_file_path)
         # 删除临时文件
         os.remove(temp_file_path)
