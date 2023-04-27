@@ -7,10 +7,10 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from transformers import BertTokenizer
-from retrieve import SentimentClassifier
+from retrieve import SentimentClassifier, positional_encoding
 
-MODEL_FILE = "./models/bert_base_128max_55batch_segmentid_positionid.dat"
-
+# MODEL_FILE = "./models/bert_base_128max_55batch_segmentid_positionid.dat"
+MODEL_FILE = "./models/siameseBert_new_train_data2.dat"
 
 class PDataset(Dataset):
 
@@ -86,7 +86,9 @@ class Predictor():
         self.maxlen = maxlen
 
         self.predict_dataset = PDataset(predict_dataset_path, self.maxlen)
-        self.dataloader = DataLoader(self.predict_dataset, batch_size=200, shuffle=False, num_workers=4)
+        self.output_file_path = output_dataset_path
+        self.dataloader = DataLoader(self.predict_dataset, batch_size=200, shuffle=False,
+                                     num_workers=10)  # TODO:增大worker, 减小batch_size
 
     def predict(self):
         with torch.no_grad():
@@ -97,7 +99,7 @@ class Predictor():
                                                        segment_ids.cuda(self.gpu), position_ids.cuda(self.gpu)
                 logits = self.classifier(seq, attn_masks, segment_ids, position_ids)
                 probs = torch.sigmoid(logits.unsqueeze(-1))
-                soft_probs = (probs > 0.99).long()  # 0.9是阈值， soft_probs是预测值 i.e. 0 or 1
+                soft_probs = (probs > 0.97).long()  # 0.9是阈值， soft_probs是预测值 i.e. 0 or 1
                 all_probs.extend(probs.squeeze().tolist())  # all_probs是所有预测值的概率
                 all_preds.extend(soft_probs.squeeze().tolist())  # all_preds是所有预测值的列表
 
@@ -196,7 +198,6 @@ def predict(dataset_for_predict_path, output_dataset_path):
 
         chunk.to_csv(temp_file_path, mode='a', index=False)
         print("predicting for chunk:", i, " - data in the file:", temp_file_path)
-
         predictor = Predictor(maxlen, temp_file_path, output_dataset_path, gpu)
         predictor.predict()
         print("Done for chunk:", i, " - data in the file:", temp_file_path)
@@ -206,8 +207,12 @@ def predict(dataset_for_predict_path, output_dataset_path):
 
 
 if __name__ == '__main__':
-    dataset_for_predict_path = "./data/demo_dev_claims_evi_pairs_for_predict.csv"
-    output_dataset_path = "./data/output/demo_dev_claims_evi_pairs_for_predict_output.csv"
+    # dataset_for_predict_path = "./data/demo_dev_claims_evi_pairs_for_predict.csv"
+    # output_dataset_path = "./data/output/demo_dev_claims_evi_pairs_for_predict_output2.csv"
+    # dataset_for_predict_path = "./data/demo_dev_for_predict.csv"
+    # output_dataset_path = "./data/output/demo_dev_for_predict_output_by_sia_new_data2.csv"
+    dataset_for_predict_path = "./data/temp_test.csv"
+    output_dataset_path = "./data/output/temp_output.csv"
     predict(dataset_for_predict_path, output_dataset_path)
 
     # check_pred("./data/dev-claims.json", "./data/demo_dev_for_predict_output2.csv")
