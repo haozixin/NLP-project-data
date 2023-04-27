@@ -93,3 +93,59 @@ true_evidences: ['evidence-67732', 'evidence-572512']
 
 5. 集成模型：可以将多个不同的模型集成在一起，通过投票或者加权平均的方式进行预测，以提高模型的准确性和鲁棒性。
 
+## Config
+
+### 最初的BertConfig
+```
+BertConfig {
+  "architectures": [
+    "BertForMaskedLM"
+  ],
+  "attention_probs_dropout_prob": 0.1,
+  "gradient_checkpointing": false,
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "initializer_range": 0.02,
+  "intermediate_size": 3072,
+  "layer_norm_eps": 1e-12,
+  "max_position_embeddings": 512,
+  "model_type": "bert",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12,
+  "pad_token_id": 0,
+  "position_embedding_type": "absolute",
+  "transformers_version": "4.28.1",
+  "type_vocab_size": 2,
+  "use_cache": true,
+  "vocab_size": 30522
+}
+```
+
+1. "architectures"
+
+"BertForMaskedLM" 主要用于训练语言模型，即预测一个句子中被遮挡的词汇。它不是专门用于判断两个句子之间是否有关系的模型，但是可以通过微调（fine-tuning）或在其基础上构建更复杂的模型来实现该任务。
+
+通常用于判断两个句子之间是否有关系的模型是基于 Siamese 架构的模型，例如 "Siamese-BERT"、"Siamese-CNN" 等。这些模型通过将两个句子输入到同一个模型中，然后计算两个句子的相似度得分来判断它们之间是否有关系。其中，Siamese 架构意味着两个句子共享同样的权重参数。
+
+因此，如果您需要判断两个句子之间是否有关系，可以考虑使用基于 Siamese 架构的模型，而不是 "BertForMaskedLM"。
+
+2. "classifier_dropout" + hidden_dropout_prob + attention_probs_dropout_prob
+
+总的来说，分类器中的dropout主要针对模型的过拟合问题，隐藏层中的dropout则更多的是为了模型的泛化性能考虑。
+   
+3. "gradient_checkpointing": 控制是否使用gradient checkpointing技术来减少内存占用。如果您的模型比较大，可以考虑将该参数设置为True。
+
+4. hidden_size: 隐藏层的神经元数量
+
+5. num_hidden_layers: 隐藏层的层数
+
+
+[Model 4](#model-4) models/siameseBert_new_train_data.dat
+训练时，accuracy低，无法聚合，偏向把对的预测成错的。 new_train_data中的数据不平衡，容易带偏
+
+[Model 5](#model-5) models/siameseBert.dat
+其他都没变，只改了模型
+
+
+## 检查代码更新，输出路径，数据（新的dev和train），TODO里的tips , 参数maxleng和batch_size
