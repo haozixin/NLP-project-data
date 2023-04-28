@@ -1,6 +1,8 @@
 import csv
 import json
 import os
+import random
+import time
 
 import pandas as pd
 import torch
@@ -10,7 +12,7 @@ from transformers import BertTokenizer
 from retrieve import SentimentClassifier
 
 # MODEL_FILE = "./models/bert_base_128max_55batch_segmentid_positionid.dat"
-MODEL_FILE = "./models/siameseBert_new_train_data2.dat"
+MODEL_FILE = "./models/siameseBert_256max_53batch_new_balance_data.dat"
 
 class PDataset(Dataset):
 
@@ -37,36 +39,25 @@ class PDataset(Dataset):
         claim = sentence.split("[SEP]")[0]
         evidence = sentence.split("[SEP]")[1]
 
-        # 对claim和evidence进行分词
-        claim_tokens = self.tokenizer.tokenize(claim)
-        evidence_tokens = self.tokenizer.tokenize(evidence)
+        encoded_input = self.tokenizer.encode_plus(
+            claim,  # 要编码的句子
+            evidence,
+            add_special_tokens=True,  # 添加特殊令牌
+            max_length=self.maxlen,  # 最大长度
+            padding='max_length',  # 填充到最大长度
+            truncation=True,  # 截断输入序列以适合最大长度
+            return_tensors='pt',  # 返回 PyTorch 张量
+        )
 
-        claim_tokens = ['[CLS]'] + claim_tokens + ['[SEP]']
-        evidence_tokens = evidence_tokens + ['[SEP]']
-        if len(claim_tokens) < self.maxlen:
-            claim_tokens = claim_tokens + ['[PAD]' for _ in range(self.maxlen - len(claim_tokens))]
-        else:
-            claim_tokens = claim_tokens[:self.maxlen - 1] + ['[SEP]']
-        if len(evidence_tokens) < self.maxlen:
-            evidence_tokens = evidence_tokens + ['[PAD]' for _ in range(self.maxlen - len(evidence_tokens))]
-        else:
-            evidence_tokens = evidence_tokens[:self.maxlen - 1] + ['[SEP]']
-
-        # build segment_ids
-        segment_ids = [0] * len(claim_tokens) + [1] * len(evidence_tokens)
-        segment_ids = torch.tensor(segment_ids)
-
-        sentence_tokens = claim_tokens + evidence_tokens
-
-        tokens_ids = self.tokenizer.convert_tokens_to_ids(sentence_tokens)  # Obtaining the indices of the tokens in the BERT Vocabulary
-        tokens_ids_tensor = torch.tensor(tokens_ids)  # Converting the list to a pytorch tensor
+        # 获取句子的token ids
+        tokens_ids_tensor = encoded_input['input_ids'].squeeze()
+        attn_mask = encoded_input['attention_mask'].squeeze()
+        segment_ids = encoded_input['token_type_ids'].squeeze()
 
         # position tokens
-        position_ids = [i for i in range(len(tokens_ids))]
+        position_ids = [i for i in range(self.maxlen)]
         position_ids = torch.tensor(position_ids)
 
-        # Obtaining the attention mask i.e a tensor containing 1s for no padded tokens and 0s for padded ones
-        attn_mask = (tokens_ids_tensor != 0).long()
 
         return tokens_ids_tensor, attn_mask, segment_ids, position_ids
 
@@ -91,7 +82,7 @@ class Predictor:
         self.predict_dataset_path = predict_dataset_path
         self.predict_dataset = PDataset(predict_dataset_path, self.maxlen)
         self.output_file_path = output_dataset_path
-        self.dataloader = DataLoader(self.predict_dataset, batch_size=200, shuffle=False,
+        self.dataloader = DataLoader(self.predict_dataset, batch_size=400, shuffle=False,
                                      num_workers=10)  # TODO:增大worker, 减小batch_size
 
         with torch.no_grad():
@@ -145,37 +136,57 @@ def check_pred(dev_claims_path, output_pred_path):
     print("true_evidences:", true_evidences)
 
 
-def format_preds(preds_path, unlabelled_claims_path, output_path):
+def format_preds(preds_path, unlabelled_claims_path, output_path, k):
     # 将得到的预测格式化
-    # 读取 output_pred_path
+    # 读取 output_pred_path 预测结果
     df = pd.read_csv(preds_path)
-    # 读取 dev_claims_path
-    with open(unlabelled_claims_path, 'r') as f:
-        # 读取JSON数据 - 字典
-        claims = json.load(f)
     # 找出output_pred_path中的label为1的句子
     df_pred = df[df['label'] == 1]
-    claim_id = ''
+    # 根据prob排序
+    df_pred = df_pred.sort_values(by='probs', ascending=False)
+
+    # 读取 dev_claims_path
+    with open(unlabelled_claims_path, 'r') as f: # unlabelled_claims_path可以是dev/test
+        # 读取JSON数据 - 字典
+        claims = json.load(f)
+
+    # 创建空json
+    new_claims = {}
+    # 遍历claims 找出所有的claim_id
+    for claim_id in claims:
+        # 创建空list
+        new_claims[claim_id] = {}
+        new_claims[claim_id]['claim_text'] = claims[claim_id]['claim_text']
+        new_claims[claim_id]['label'] = "NAN"
+        new_claims[claim_id]['evidences'] = []
+    # 遍历df_pred 选出这个claim_id对应的evidence_id最高的k个
     for index, row in df_pred.iterrows():
         id = row['id']
         probs = row['probs']
         claim_id = id.split(',')[0]
         evidence_id = id.split(',')[1]
-        # 将预测的evidence加入到claims中
-        claims[claim_id]['evidences'].append(evidence_id)
+        # 如果claim_id在new_claims中
+        if claim_id in new_claims and len(new_claims[claim_id]['evidences']) < k:
+            # 将evidence_id加入到new_claims中
+            new_claims[claim_id]['evidences'].append(evidence_id)
+
     # 遍历claims，碰到没有evidence的claim，将随机一个evidence加入到claims中（只是以防错误）
-    for claim_id in claims:
-        if len(claims[claim_id]['evidences']) == 0:
-            claims[claim_id]['evidences'].append("evidence-957389")
-        print("This claim has no evidence claim_id:", claim_id)
+    counter = 0
+    for claim_id in new_claims:
+        if len(new_claims[claim_id]['evidences']) == 0:
+            random_num = random.randint(0, 1208827)
+            new_claims[claim_id]['evidences'].append(f"evidence-{random_num}")
+            print("This claim has no evidence claim_id:", claim_id)
+            counter += 1
+    print("How many claims that don't have predictions:", counter)
     # 将claims写入到output_path中
     with open(output_path, 'w') as f:
-        json.dump(claims, f, indent=2, ensure_ascii=False)
+        json.dump(new_claims, f, indent=2, ensure_ascii=False)
     print("format_preds done!")
 
 
 def predict(dataset_for_predict_path, output_dataset_path):
-    maxlen = 128
+    maxlen = 256
     # predict_dataset_path = "./data/demo_dev_for_predict.csv"
     # output_dataset_path = "./data/demo_dev_for_predict_output2.csv"
     gpu = 0
@@ -195,6 +206,7 @@ def predict(dataset_for_predict_path, output_dataset_path):
     df.to_csv(output_dataset_path, index=False, header=True, mode='w')
 
     for i, chunk in enumerate(pd.read_csv(dataset_for_predict_path, chunksize=chunk_size)):
+        start = time.time()
         temp_file_path = f"./data/temp{i}.csv"
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
@@ -207,15 +219,16 @@ def predict(dataset_for_predict_path, output_dataset_path):
         # 删除临时文件
         os.remove(temp_file_path)
         print("Removed temp file: ", temp_file_path)
+        end = time.time()
+        print("time cost: ", end - start)
 
 
 if __name__ == '__main__':
     # dataset_for_predict_path = "./data/demo_dev_claims_evi_pairs_for_predict.csv"
-    # output_dataset_path = "./data/output/demo_dev_claims_evi_pairs_for_predict_output2.csv"
-    # dataset_for_predict_path = "./data/demo_dev_for_predict.csv"
-    # output_dataset_path = "./data/output/demo_dev_for_predict_output_by_sia_new_data2.csv"
-    dataset_for_predict_path = "./data/temp_test.csv"
-    output_dataset_path = "./data/output/temp_output.csv"
+    # output_dataset_path = "./data/predict_output/demo_dev_claims_evi_pairs_for_predict_output2.csv"
+    dataset_for_predict_path = "./data/similarity_filtered/dev_output_5000.csv"
+    output_dataset_path = "./data/predict_output/dev_5000.csv"
+
     predict(dataset_for_predict_path, output_dataset_path)
 
     # check_pred("./data/dev-claims.json", "./data/demo_dev_for_predict_output2.csv")

@@ -85,7 +85,7 @@ class SentimentClassifier(nn.Module):
 
         # Classification layer
         # input dimension is 768 because [CLS] embedding has a dimension of 768
-        # output dimension is 1 because we're working with a binary classification problem
+        # predict_output dimension is 1 because we're working with a binary classification problem
         self.cls_layer = nn.Linear(768, 1)
 
     def forward(self, seq, attn_masks, segment_ids, position_ids):
