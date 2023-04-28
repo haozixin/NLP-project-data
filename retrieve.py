@@ -50,17 +50,17 @@ class SSTDataset(Dataset):
         )
 
         # 获取句子的token ids
-        tokens_ids_tensor = encoded_input['input_ids']
-        attn_mask = encoded_input['attention_mask']
-        segment_ids = encoded_input['token_type_ids']
-        tokens_ids = tokens_ids_tensor.tolist()[0]
+        tokens_ids_tensor = encoded_input['input_ids'].squeeze()
+        attn_mask = encoded_input['attention_mask'].squeeze()
+        segment_ids = encoded_input['token_type_ids'].squeeze()
+
 
 
 
 
 
         # position tokens
-        position_ids = [i for i in range(len(tokens_ids))]
+        position_ids = [i for i in range(self.maxlen)]
         position_ids = torch.tensor(position_ids)
 
 
@@ -116,7 +116,9 @@ def get_accuracy_from_logits(logits, labels):
 def get_f1_from_logits(logits, labels):
     probs = torch.sigmoid(logits.unsqueeze(-1))
     soft_probs = (probs > 0.5).long()
-    f1 = f1_score(labels, soft_probs.squeeze(), average='weighted')
+    t = soft_probs.squeeze().cpu()
+    labels = labels.cpu()
+    f1 = f1_score(labels, t, average='weighted')
     return f1
 
 def evaluate(net, criterion, dataloader, gpu):
@@ -164,8 +166,9 @@ def train(net, criterion, opti, train_loader, dev_loader, max_eps, gpu):
 
             if it % 100 == 0:
                 acc = get_accuracy_from_logits(logits, labels)
-                print("Iteration {} of epoch {} complete. Loss: {}; Accuracy: {}; Time taken (s): {}"
-                      .format(it, ep, loss.item(), acc, (time.time() - st)))
+                f1 = get_f1_from_logits(logits, labels)
+                print("Iteration {} of epoch {} complete. Loss: {}; Accuracy: {}; f1: {}; Time taken (s): {}"
+                      .format(it, ep, loss.item(), acc, f1, (time.time() - st)))
                 st = time.time()
 
         dev_acc, dev_loss, dev_f1 = evaluate(net, criterion, dev_loader, gpu)
