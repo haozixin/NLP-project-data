@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from transformers import BertTokenizer
-from retrieve import SentimentClassifier, positional_encoding
+from retrieve import SentimentClassifier
 
 # MODEL_FILE = "./models/bert_base_128max_55batch_segmentid_positionid.dat"
 MODEL_FILE = "./models/siameseBert_new_train_data2.dat"
@@ -73,7 +73,7 @@ class PDataset(Dataset):
 
 
 
-class Predictor():
+class Predictor:
     def __init__(self, maxlen, gpu):
 
 
