@@ -1,11 +1,13 @@
+import json
 import os.path
+import time
 
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 from sklearn.feature_extraction.text import TfidfVectorizer
-from torch.nn.functional import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import Dataset, DataLoader
 
 
@@ -64,7 +66,7 @@ class MyModel(nn.Module):
 class TfidfSimilarityFilter:
     def __init__(self, filename, k, output_dataset_path):
         self.dataset = MyDataset(filename)
-        self.dataloader = DataLoader(self.dataset, batch_size=5, shuffle=False, num_workers=1)
+        self.dataloader = DataLoader(self.dataset, batch_size=400, shuffle=False, num_workers=16)
         self.k = k
         self.output_dataset_path = output_dataset_path
         self.filter = MyModel()
@@ -99,8 +101,8 @@ class TfidfSimilarityFilter:
 
 
 def filter(pairs_data_path, output_path):
-    chunk_size = 15
-    k=5
+    chunk_size = 1208827
+    k=10000
 
     if os.path.exists(output_path):
         os.remove(output_path)
@@ -111,6 +113,8 @@ def filter(pairs_data_path, output_path):
     df.to_csv(output_path, index=False, header=True, mode='w')
 
     for i, chunk in enumerate(pd.read_csv(pairs_data_path, chunksize=chunk_size)):
+        # 计时器
+        start = time.time()
         temp_file_path = f"./data/similarity_filtered/temp/temp{i}.csv"
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
@@ -124,7 +128,61 @@ def filter(pairs_data_path, output_path):
         # 删除临时文件
         os.remove(temp_file_path)
         print("Removed temp file: ", temp_file_path)
+        end = time.time()
+        print("Time cost: ", end - start)
+
+class filter2:
+    def __init__(self):
+        self.dev_claims = json.load(open("./data/dev-claims.json"))
+        self.evidences = json.load(open("./data/evidence.json"))
+        self.vectorizer = TfidfVectorizer(stop_words='english')
+        self.vectorizer.fit(list(self.evidences.values())+[self.dev_claims[c]['claim_text'] for c in self.dev_claims])
+        self.evidences_tfidf = self.vectorizer.transform(self.evidences.values())
+
+    def calculate(self, output_path,N):
+        print("Start calculating...")
+        start = time.time()
+
+        df = pd.DataFrame(columns=['similarity', 'id', 'sentence'])
+        # 将标题先写入到output_dataset_path中
+        df.to_csv(output_path, index=False, header=True, mode='w')
+
+        counter = 0
+        for c in self.dev_claims:
+            claim_tfidf = self.vectorizer.transform([self.dev_claims[c]['claim_text']])
+            similarity = cosine_similarity(claim_tfidf, self.evidences_tfidf).squeeze()
+            df = pd.DataFrame({'evidences': self.evidences.keys(), 'similarity': similarity}).sort_values(by=['similarity'], ascending=False)
+            potential_relevant_evidences = df.iloc[:N]
+            # 加入id 列， id= claim_id + evidence_id
+            potential_relevant_evidences.loc[:,'id'] = potential_relevant_evidences['evidences'].apply(lambda x: c + ',' + x)
+            # 加入sentence列, sentence = claim_text + evidence_text
+            potential_relevant_evidences.loc[:,'sentence'] = self.dev_claims[c]['claim_text'] + '[SEP]' + potential_relevant_evidences['evidences'].apply(lambda x: self.evidences[x])
+
+            # 去掉evidences列
+            potential_relevant_evidences = potential_relevant_evidences.drop(columns=['evidences'])
+
+            potential_relevant_evidences.to_csv(output_path, index=False, header=False, mode='a')
+            if c == "claim-1834" or c == "claim-871" or c=="claim-139" or c == "claim-1407" or c=="claim-3070" or c=="claim-677" or c=="claim-3063":
+                print("----------",c)
+            counter += 1
+        print("Done for ", counter, " claims.")
+        end = time.time()
+        print("Time cost: ", end - start)
+        print("Done for ", counter, " claims.")
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
-    filter("./data/test_claims_evi_pairs_for_predict.csv", "./data/similarity_filtered/output.csv")
+    # filter("./data/test_claims_evi_pairs_for_predict.csv", "./data/similarity_filtered/predict_output.csv")
+    filter2().calculate("./data/similarity_filtered/temp_output_5000.csv", 5000)
+
+    # df = pd.read_csv("data/similarity_filtered/dev_output_1000.csv", delimiter=',')
+    # print(len(df))

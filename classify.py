@@ -83,7 +83,7 @@ class SSTDataset(Dataset):
         # Selecting the sentence and label at the specified index in the data frame
         sentence = self.df.loc[index, 'sentence']
         label = self.df.loc[index, 'label']
-        label_tensor = torch.tensor(int(label))
+        # label_tensor = torch.tensor(int(label))
 
         # 对sentence进行预处理，先根据【SEP】分句
         claim = sentence.split("[SEP]")[0]
@@ -107,7 +107,7 @@ class SSTDataset(Dataset):
         # position tokens
         position_ids = [i for i in range(self.maxlen)]
         position_ids = torch.tensor(position_ids)
-        return tokens_ids_tensor, attn_mask, segment_ids, position_ids, label_tensor
+        return tokens_ids_tensor, attn_mask, segment_ids, position_ids, label
 
 
 class SentimentClassifier(nn.Module):
@@ -176,7 +176,7 @@ def evaluate(net, criterion, dataloader, gpu):
         for seq, attn_masks, segment_ids, position_ids, labels in dataloader:
             seq, attn_masks, segment_ids, position_ids, labels = seq.cuda(gpu), attn_masks.cuda(gpu), segment_ids.cuda(gpu), position_ids.cuda(gpu), labels.cuda(gpu)
             logits = net(seq, attn_masks, segment_ids, position_ids.cuda(gpu))
-            mean_loss += criterion(logits.squeeze(-1), labels.float()).item()
+            mean_loss += criterion(logits.squeeze(-1), labels).item()
             mean_acc += get_accuracy_from_logits(logits, labels)
             # 计算F1-score
             f1_score += get_f1_from_logits(logits, labels)
@@ -219,7 +219,7 @@ def train(net, criterion, opti, train_loader, dev_loader, max_eps, gpu):
         dev_acc, dev_loss, dev_f1 = evaluate(net, criterion, dev_loader, gpu)
         print("Epoch {} complete! Development Accuracy: {}; Development Loss: {}; F1: {};".format(ep, dev_acc, dev_loss, dev_f1))
         if dev_f1 > best_f1:
-            print("Best development accuracy improved from {} to {}, saving model...".format(best_f1, dev_acc))
+            print("Best development accuracy improved from {} to {}, saving model...".format(best_f1, dev_f1))
             best_f1 = dev_f1
             torch.save(net.state_dict(), './classify_models/sstcls_{}.dat'.format(ep))
 
