@@ -5,16 +5,16 @@ import pandas as pd
 
 # train-claims.json 有1228条数据 最长的332 chars - 49 words
 # 拆成claim和evidence数据对后有4122条数据
-# evidence.json 有 1208827条数据 最长的是3148 chars - 479 words mean
+# evidence.json 有 1208827条数据 最长的是3148 chars - 479 words mean  编号：evidence-1208826
 # dev-claims.json 有 154条数据
 # test-claims.json 有 153条数据
-#
-
+# {SUPPORTS(520+68=588, 0.424), REFUTES(200+27=227, 0.164), NOT_ENOUGH_INFO(386+41=427, 0.308), DISPUTED(124+19=143, 0.104)}
+# 1385
 HAS_RELATION = 1
 NO_RELATION = 0
 NO_RELATION_NUM = 5
 
-def prepare_pairs_data(train_or_dev_claims_path, new_file_name):
+def prepare_train_pairs_data(train_or_dev_claims_path, new_file_name):
     # 打开JSON文件
     with open(train_or_dev_claims_path, 'r') as f:
         # 读取JSON数据 - 字典
@@ -123,7 +123,11 @@ def prepare_test_data(dev_claims_path, new_file_name):
         writer.writerows(data)
 
     # 遍历claims 和 每个evidence 生成新的数据
+    counter = 1
     for key, value in predict_claims.items():
+        if counter == 1:
+            counter += 1
+            continue
         result = {}
         print("generate data for key: ", key)
         for evidences_no in evidences.keys():
@@ -146,12 +150,184 @@ def prepare_test_data(dev_claims_path, new_file_name):
         with open(f"data/{new_file_name}", mode='a', newline='', encoding='utf-8-sig') as f:
             writer = csv.writer(f)
             writer.writerows(data)
+
+        break
     print("prepare_test_data Done!")
 
+
+def sort_output_based_on_probs(file_path):
+    df = pd.read_csv(file_path)
+    df = df.sort_values(by=['probs'], ascending=False)
+    # 只打印两列
+    print(df[["id", "probs"]].head(10))
+    # print(df[df["id", "probs"]].head(5))
+
+
+def get_two_from_new_train_data():
+    # 每个claim 选两个
+    dic_counter = {}
+
+    rows = []
+    # 读取csv文件
+    with open("data/new_train_data2.csv", mode='r', newline='', encoding='utf-8-sig') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            calim = row[0].split(",")[0]
+            if calim not in dic_counter.keys():
+                dic_counter[calim] = 1
+                rows.append(row)
+            elif dic_counter[calim] == 1:
+                dic_counter[calim] +=1
+                rows.append(row)
+            else:
+                continue
+
+    df = pd.DataFrame(rows, columns=["id", "sentence", "label"])
+    df.to_csv("data/train3.csv", index=False, mode='a', header=False, encoding='utf-8-sig')
+
+def conbine_train_train3():
+    df1 = pd.read_csv("data/new_dev_data.csv.csv")
+    df2 = pd.read_csv("data/train3.csv")
+    df = pd.concat([df1, df2], axis=0)
+    # 打乱 - shufftle
+    df = df.sample(frac=1)
+    df.to_csv("data/train3.csv", index=False, encoding='utf-8-sig')
+
+
+def prepare_negative_sample(new_train_data_all, output_path, N):
+    # 每个claim 选两个
+    dic_counter = {}
+    rows = []
+    # 读取csv文件
+    with open(new_train_data_all, mode='r', newline='', encoding='utf-8-sig') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            calim = row[0].split(",")[0]
+            if calim not in dic_counter.keys():
+                dic_counter[calim] = 1
+                rows.append(row)
+            elif dic_counter[calim] < N:
+                dic_counter[calim] +=1
+                rows.append(row)
+
+
+    # 写入数据rows 到csv文件
+    df = pd.DataFrame(rows, columns=["id", "sentence", "label"])
+    df.to_csv(output_path, index=False, mode='w', header=False, encoding='utf-8-sig')
+
+def prepare_positive_sample():
+    # 生成positive sample并检查negative sample 是不是没有positive sample
+    df = pd.read_csv("data/old_dev.csv")
+    df = df[df["label"] == 1]
+    df.to_csv("data/new_data/dev_positive.csv", index=False, mode='w', header=True, encoding='utf-8-sig')
+
+    # # 检查df 中 的值 的id 应该和negative_sample_for_new_train.csv 中的id完全不一样
+    # df_positive_id = df["id"].tolist()
+    #
+    # df2 = pd.read_csv("data/new_data/negative_sample_for_new_train_3_for_each_claim.csv")
+    # df_negative_id = df2["id"].tolist()
+    #
+    # for id in df_positive_id:
+    #     if id in df_negative_id:
+    #         print("error")
+    #         break
+
+
+def prepare_negative_sample_for_dev(positive_data, negative_data, output_path):
+    with open("./data/train-claims.json", mode='r', newline='', encoding='utf-8-sig') as f: # 根据dev/train 换变量
+        dev_claims = json.load(f)
+
+    dic_counter = {}
+    repeat_set = set()
+    rows = []
+    df = pd.read_csv(positive_data)
+    # 获取positive_data id中的claim
+    positive_claim_id = [i.split(",")[0] for i in df["id"].tolist()]
+
+    # df["id"]中的元素放到repeat_set中
+    for id in df["id"].tolist():
+        repeat_set.add(id)
+
+    # 放到字典里统计个数
+    for id in positive_claim_id:
+        if id not in dic_counter.keys():
+            dic_counter[id] = 1
+        else:
+            dic_counter[id] += 1
+
+    with open(negative_data, mode='r', newline='', encoding='utf-8-sig') as f:
+        reader = csv.reader(f)
+        # 去掉第一行
+        next(reader)
+        for row in reader:
+            calim = row[0].split(",")[0]
+            # 如果calim在positive中出现过并且dic_counter中的值还没到0
+            if calim in dic_counter.keys() and dic_counter[calim] > 0:
+                rows.append(row)
+                dic_counter[calim] -= 1
+                repeat_set.add(row[0])
+            else:
+                if calim not in dic_counter.keys():
+                    print("error(预测的claim在positive中没出现): ", calim)
+
+    # 随机补全 - dic_counter中值还没到0的claim
+    for key in dic_counter.keys():
+        if dic_counter[key] > 0:
+            # 去evidence中随机组合
+            # 打开evidence.json文件
+            with open("data/evidence.json", 'r') as f:
+                # 读取JSON数据 - 字典
+                evidences = json.load(f)
+                for round in range(dic_counter[key]):
+                    index = random.randint(0, 1208827)
+                    text_index = list(evidences.keys())[index]
+                    id = key + ',' + text_index
+                    if id not in repeat_set:
+                        sentence = dev_claims[key]["claim_text"] + '[SEP]' + evidences[text_index]
+                        rows.append([id, sentence, 0])
+                        dic_counter[key] -= 1
+                        repeat_set.add(id)
+    # 每个claim 加两个随机的
+    for key in dic_counter.keys():
+        for round in range(2):
+            index = random.randint(0, 1208827)
+            text_index = list(evidences.keys())[index]
+            id = key + ',' + text_index
+            if id not in repeat_set:
+                sentence = dev_claims[key]["claim_text"] + '[SEP]' + evidences[text_index]
+                rows.append([id, sentence, 0])
+                dic_counter[key] -= 1
+                repeat_set.add(id)
+
+
+    # 写入数据rows 到csv文件
+    df2 = pd.DataFrame(rows, columns=["id", "sentence", "label"])
+    # 混合df1和df2
+    df_final = pd.concat([df, df2], axis=0)
+    # shuffle
+    df_final = df_final.sample(frac=1)
+
+    df_final.to_csv(output_path, index=False, mode='w', header=True, encoding='utf-8-sig')
+
+
+
+
+
+
+
+
+
+
+
 if __name__=="__main__":
-    prepare_test_data("data/test-claims-unlabelled.json", "test_claims_evi_pairs_for_predict.csv")
-    # check_correctness("data/train.csv", "data/train-claims.json")
-    # check_correctness("data/dev.csv", "data/dev-claims.json")
+    prepare_negative_sample_for_dev("data/new_data/train_positive.csv", "data/new_data/new_train_negative_data_all.csv", "data/new_data/train.csv")
+
+    # conbine_train_train3()
+    # sort_output_based_on_probs("./data/retrieve_output/demo_dev_claims_evi_pairs_for_predict_output.csv")
+    # prepare_test_data("data/dev-claims.json", "demo_dev_claims_evi_pairs_for_predict.csv")
+    # prepare_test_data("data/test-claims-unlabelled.json", "test_claims_evi_pairs_for_predict.csv")
+    # check_correctness("data/ole_train.csv", "data/train-claims.json")
+    # check_correctness("data/old_dev.csv", "data/dev-claims.json")
 
 
 

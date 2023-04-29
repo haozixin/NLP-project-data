@@ -149,3 +149,13 @@ BertConfig {
 
 
 ## 检查代码更新，输出路径，数据（新的dev和train），TODO里的tips , 参数maxleng和batch_size
+
+- new_train_data, 和new_train_dev中是预测错的数据，人工纠正后要作为新训练数据
+- data/demo_evaluation/demo_dev_claims_evi_pairs_for_predict.csv 是一个claim的所有evidences组合
+- 新的训练数据 按比例结合正确数据，预测错误后标记数据，和随机数据： x:x:2;   dev 原有的：预测错的：随机的 = 1:1:1
+- 
+TODO: 
+1. 用sentence_transformer做训练数据和dev, 用新的训练数据和原来dev测看有没有变好
+2. 训练sentence_transformer模型（报告用）
+3. sentence_transformer 直接做预测，做baseline
+4. tfidf做baseline2

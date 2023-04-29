@@ -99,7 +99,7 @@ def get_evidence():
 
 
 if __name__ == '__main__':
-    generate_new_train_or_dev_data("./data/dev-claims.json", "./data/new_dev_data.csv")
+    generate_new_train_or_dev_data("./data/temp-dev-claims.json", "./data/new_dev_data3.csv")
 
 
 

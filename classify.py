@@ -110,10 +110,10 @@ class SSTDataset(Dataset):
         return tokens_ids_tensor, attn_mask, segment_ids, position_ids, label
 
 
-class SentimentClassifier(nn.Module):
+class step2Classifier(nn.Module):
 
     def __init__(self):
-        super(SentimentClassifier, self).__init__()
+        super(step2Classifier, self).__init__()
         # Instantiating BERT model object
         self.config = BertConfig.from_pretrained('bert-base-uncased')
         # change config
@@ -127,7 +127,7 @@ class SentimentClassifier(nn.Module):
 
         # Classification layer
         # input dimension is 768 because [CLS] embedding has a dimension of 768
-        # predict_output dimension is 1 because we're working with a binary classification problem
+        # retrieve_output dimension is 1 because we're working with a binary classification problem
         self.cls_layer = nn.Linear(768, 4)
 
     def forward(self, seq, attn_masks, segment_ids, position_ids):
@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
     gpu = 0  # gpu ID
     print("Creating the sentiment classifier, initialised with pretrained BERT-BASE parameters...")
-    net = SentimentClassifier()
+    net = step2Classifier()
     net.cuda(gpu)  # Enable gpu support for the model
     print("Done creating the sentiment classifier.")
 

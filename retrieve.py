@@ -85,7 +85,7 @@ class SentimentClassifier(nn.Module):
 
         # Classification layer
         # input dimension is 768 because [CLS] embedding has a dimension of 768
-        # predict_output dimension is 1 because we're working with a binary classification problem
+        # retrieve_output dimension is 1 because we're working with a binary classification problem
         self.cls_layer = nn.Linear(768, 1)
 
     def forward(self, seq, attn_masks, segment_ids, position_ids):
@@ -182,14 +182,14 @@ def train(net, criterion, opti, train_loader, dev_loader, max_eps, gpu):
 
 if __name__ == "__main__":
     # ===============================只需要调用一次生成训练集和dev集======================================
-    # prepare_pairs_data("data/train-claims.json", "train.csv")
-    # prepare_pairs_data("data/dev-claims.json", "dev.csv")
+    # prepare_pairs_data("data/train-claims.json", "ole_train.csv")
+    # prepare_pairs_data("data/dev-claims.json", "old_dev.csv")
     # ====================================================================
     # Creating instances of training and development set
     # maxlen sets the maximum length a sentence can have
     # any sentence longer than this length is truncated to the maxlen size
-    train_set = SSTDataset(filename='data/train.csv', maxlen=64)
-    dev_set = SSTDataset(filename='data/dev.csv', maxlen=64)
+    train_set = SSTDataset(filename='data/ole_train.csv', maxlen=64)
+    dev_set = SSTDataset(filename='data/old_dev.csv', maxlen=64)
     # Creating intsances of training and development dataloaders
     # TODO: 交叉验证; num_workers 自己本地算的时候可以调大点；这些值最后都要调优
     train_loader = DataLoader(train_set, batch_size=32, num_workers=2)

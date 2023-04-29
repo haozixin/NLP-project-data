@@ -93,7 +93,7 @@ class Predictor:
                                                        segment_ids.cuda(self.gpu), position_ids.cuda(self.gpu)
                 logits = self.classifier(seq, attn_masks, segment_ids, position_ids)
                 probs = torch.sigmoid(logits.unsqueeze(-1))
-                soft_probs = (probs > 0.975).long()  # 0.9是阈值， soft_probs是预测值 i.e. 0 or 1
+                soft_probs = (probs > 0.90).long()  # 0.9是阈值， soft_probs是预测值 i.e. 0 or 1
                 all_probs.extend(probs.squeeze().tolist())  # all_probs是所有预测值的概率
                 all_preds.extend(soft_probs.squeeze().tolist())  # all_preds是所有预测值的列表
 
@@ -157,7 +157,7 @@ def format_preds(preds_path, unlabelled_claims_path, output_path, k):
         # 创建空list
         new_claims[claim_id] = {}
         new_claims[claim_id]['claim_text'] = claims[claim_id]['claim_text']
-        new_claims[claim_id]['label'] = "NAN"
+        new_claims[claim_id]['claim_label'] = "NAN"
         new_claims[claim_id]['evidences'] = []
     # 遍历df_pred 选出这个claim_id对应的evidence_id最高的k个
     for index, row in df_pred.iterrows():
@@ -181,7 +181,7 @@ def format_preds(preds_path, unlabelled_claims_path, output_path, k):
     print("How many claims that don't have predictions:", counter)
     # 将claims写入到output_path中
     with open(output_path, 'w') as f:
-        json.dump(new_claims, f, indent=2, ensure_ascii=False)
+        json.dump(new_claims, f, indent=2)
     print("format_preds done!")
 
 
@@ -225,13 +225,17 @@ def predict(dataset_for_predict_path, output_dataset_path):
 
 if __name__ == '__main__':
     # dataset_for_predict_path = "./data/demo_dev_claims_evi_pairs_for_predict.csv"
-    # output_dataset_path = "./data/predict_output/demo_dev_claims_evi_pairs_for_predict_output2.csv"
-    dataset_for_predict_path = "./data/similarity_filtered/dev_output_5000.csv"
-    output_dataset_path = "./data/predict_output/dev_5000.csv"
-
-    predict(dataset_for_predict_path, output_dataset_path)
+    # output_dataset_path = "./data/retrieve_output/demo_dev_claims_evi_pairs_for_predict_output2.csv"
+    #
+    # dataset_for_predict_path = "./data/similarity_filtered/test_output_10000.csv"
+    # output_dataset_path = "./data/retrieve_output/test_10000.csv"
+    #
+    # predict(dataset_for_predict_path, output_dataset_path)
 
     # check_pred("./data/dev-claims.json", "./data/demo_dev_for_predict_output2.csv")
 
     # format_preds("./data/demo_dev_for_predict_output.csv", "./data/test-claims-unlabelled.json", "./data/test-claims-predictions.json")
 
+    # 整理dev的预测结果
+    format_preds("data/retrieve_output/test_10000.csv", "./data/test-claims-unlabelled.json",
+                 "data/retrieve_output/test-claims-predictions_10000_4.json", 4)
