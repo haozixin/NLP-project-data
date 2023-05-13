@@ -182,13 +182,13 @@ def train(net, criterion, opti, train_loader, dev_loader, max_eps, gpu):
 
 if __name__ == "__main__":
     # ===============================只需要调用一次生成训练集和dev集======================================
-    # prepare_pairs_data("data/train-claims.json", "ole_train.csv")
+    # prepare_pairs_data("data/train-claims.json", "old_train.csv")
     # prepare_pairs_data("data/dev-claims.json", "old_dev.csv")
     # ====================================================================
     # Creating instances of training and development set
     # maxlen sets the maximum length a sentence can have
     # any sentence longer than this length is truncated to the maxlen size
-    train_set = SSTDataset(filename='data/ole_train.csv', maxlen=64)
+    train_set = SSTDataset(filename='data/old_train.csv', maxlen=64)
     dev_set = SSTDataset(filename='data/old_dev.csv', maxlen=64)
     # Creating intsances of training and development dataloaders
     # TODO: 交叉验证; num_workers 自己本地算的时候可以调大点；这些值最后都要调优

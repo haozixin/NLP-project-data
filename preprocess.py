@@ -61,6 +61,12 @@ def prepare_train_pairs_data(train_or_dev_claims_path, new_file_name):
     return result  # 返回字典 - 例子: value = [claim, evidence, label]
 
 def data_analise(path):
+    """
+    Analyse data, show shape, columns, describe
+    print these information
+    :param path: the path of data file
+    :return: None
+    """
     # 用pandas从csv加载数据
     print(f"====================={path}=====================")
     data = pd.read_csv(path)
@@ -134,15 +140,6 @@ def prepare_test_data(dev_claims_path, new_file_name):
             evi_text = evidences[evidences_no]
             # claim 编号+evidence 编号 (用，连接) = key
             result[key + ',' + evidences_no] = [value['claim_text'], evi_text]
-    # # ======================记得删除================================================
-    # # 添加有关系的数据对
-    #     evidences_nos = value['evidences']
-    #     for evidences_no in evidences_nos:
-    #         evi_text = evidences[evidences_no]
-    #         # claim 编号+evidence 编号 (用，连接) = key
-    #         result[key + ',' + evidences_no] = [value['claim_text'], evi_text]
-    #
-    # # ======================================================================
         data = []
         for key, value in result.items():
             data.append([key, value[0] + '[SEP]' + value[1]])
@@ -160,7 +157,6 @@ def sort_output_based_on_probs(file_path):
     df = df.sort_values(by=['probs'], ascending=False)
     # 只打印两列
     print(df[["id", "probs"]].head(10))
-    # print(df[df["id", "probs"]].head(5))
 
 
 def get_two_from_new_train_data():
@@ -326,7 +322,7 @@ if __name__=="__main__":
     # sort_output_based_on_probs("./data/retrieve_output/demo_dev_claims_evi_pairs_for_predict_output.csv")
     # prepare_test_data("data/dev-claims.json", "demo_dev_claims_evi_pairs_for_predict.csv")
     # prepare_test_data("data/test-claims-unlabelled.json", "test_claims_evi_pairs_for_predict.csv")
-    # check_correctness("data/ole_train.csv", "data/train-claims.json")
+    # check_correctness("data/old_train.csv", "data/train-claims.json")
     # check_correctness("data/old_dev.csv", "data/dev-claims.json")
 
 

@@ -229,7 +229,7 @@ if __name__ == "__main__":
     # preprocess_data("data/train-claims.json", "train_for_classify.csv")
 
     # ===============================只需要调用一次生成训练集和dev集======================================
-    # prepare_pairs_data("data/train-claims.json", "ole_train.csv")
+    # prepare_pairs_data("data/train-claims.json", "old_train.csv")
     # prepare_pairs_data("data/dev-claims.json", "old_dev.csv")
     # ====================================================================
     # Creating instances of training and development set

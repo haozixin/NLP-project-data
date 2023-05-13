@@ -83,7 +83,7 @@ class Predictor:
         self.predict_dataset = PDataset(predict_dataset_path, self.maxlen)
         self.output_file_path = output_dataset_path
         self.dataloader = DataLoader(self.predict_dataset, batch_size=400, shuffle=False,
-                                     num_workers=10)  # TODO:增大worker, 减小batch_size
+                                     num_workers=10)
 
         with torch.no_grad():
             all_preds = []
@@ -187,10 +187,8 @@ def format_preds(preds_path, unlabelled_claims_path, output_path, k):
 
 def predict(dataset_for_predict_path, output_dataset_path):
     maxlen = 256
-    # predict_dataset_path = "./data/demo_dev_for_predict.csv"
-    # output_dataset_path = "./data/demo_dev_for_predict_output2.csv"
     gpu = 0
-    chunk_size = 50000
+    chunk_size = 40000
     predictor = Predictor(maxlen, gpu)
     # 清理文件
     if os.path.exists(output_dataset_path):
@@ -226,9 +224,9 @@ def predict(dataset_for_predict_path, output_dataset_path):
 if __name__ == '__main__':
     # dataset_for_predict_path = "./data/demo_dev_claims_evi_pairs_for_predict.csv"
     # output_dataset_path = "./data/retrieve_output/demo_dev_claims_evi_pairs_for_predict_output2.csv"
-    #
-    # dataset_for_predict_path = "./data/similarity_filtered/test_output_10000.csv"
-    # output_dataset_path = "./data/retrieve_output/test_10000.csv"
+
+    # dataset_for_predict_path = "./data/similarity_filtered/test_output_40000.csv"
+    # output_dataset_path = "./data/retrieve_output/test_40000.csv"
     #
     # predict(dataset_for_predict_path, output_dataset_path)
 
@@ -237,5 +235,5 @@ if __name__ == '__main__':
     # format_preds("./data/demo_dev_for_predict_output.csv", "./data/test-claims-unlabelled.json", "./data/test-claims-predictions.json")
 
     # 整理dev的预测结果
-    format_preds("data/retrieve_output/test_10000.csv", "./data/test-claims-unlabelled.json",
-                 "data/retrieve_output/test-claims-predictions_10000_4.json", 4)
+    format_preds("data/retrieve_output/test_40000.csv", "data/test-claims-unlabelled.json",
+                 "data/retrieve_output/test-claims-predictions_40000_4.json", 4)

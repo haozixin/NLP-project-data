@@ -95,27 +95,13 @@ if __name__ == "__main__":
 
 # 预测阈值为0.975
 # dev-claims-predictions_5000:
-# This claim has no evidence claim_id: claim-871
-# This claim has no evidence claim_id: claim-139
-# This claim has no evidence claim_id: claim-1834
-# This claim has no evidence claim_id: claim-1407
-# This claim has no evidence claim_id: claim-3070
-# This claim has no evidence claim_id: claim-677
-# This claim has no evidence claim_id: claim-3063
-# How many claims that don't have predictions: 7
+
 # 0.2091836734693877  -  k=3
 # 0.21013708513708515 -  k=5
 # 0.2104153782725211  -  k=4
 
 # dev-claims-predictions_10000:
-# This claim has no evidence claim_id: claim-871
-# This claim has no evidence claim_id: claim-139
-# This claim has no evidence claim_id: claim-1834
-# This claim has no evidence claim_id: claim-1407
-# This claim has no evidence claim_id: claim-3070
-# This claim has no evidence claim_id: claim-677
-# This claim has no evidence claim_id: claim-3063
-# How many claims that don't have predictions: 7
+
 # 0.21185837971552254 -  k=4
 # 0.21080705009276435 -  k=3
 # 0.21185837971552254 -  k=5
@@ -123,9 +109,23 @@ if __name__ == "__main__":
 # k=4 最好; 数据量越大越好一点; 问题数据量+阈值(内存跟性能的平衡，可以尽可能地加)
 
 
+# Classifier model:
 # 280max_50batch_0.517.bat：
 # Claim Classification Accuracy (A) = 0.5584415584415584; vote 概率
 # vote 1: Claim Classification Accuracy (A) = 0.538961038961039
 
 # 410max_18batch_0.5305.dat
 # Claim Classification Accuracy (A) = 0.5
+
+# 360max_32batch_0.486.bat
+# Claim Classification Accuracy (A) = 0.525974025974026
+
+# formated_baseline_first_3.json
+# Evidence Retrieval F-score (F)    = 0.0943104514533086
+# baselines/data/formated_baseline_first_4.json
+# Evidence Retrieval F-score (F)    = 0.0991187384044527
+# baselines/data/formated_baseline_first_5.json
+# Evidence Retrieval F-score (F)    = 0.09012059369202227
+
+# Claim Classification Accuracy (A) = 0.0
+# Claim Classification Accuracy (A) = 0.44155844155844154

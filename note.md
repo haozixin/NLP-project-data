@@ -9,19 +9,19 @@ Secret url: https://codalab.lisn.upsaclay.fr/competitions/12639?secret_key=319e8
 |:------:|:---:|:---:|:---:|:---:|:---:|
 | zenanz |04/21/23|	Baseline|0.12040 (4)|0.07150 (4)|0.38160 (4)|
 
-# 提升方向
+# Promotion direction
 
-## 算力
-越大越好， 略
+## computing power
+The larger the better, slightly
 
 ## batch size
-batch_size对模型的效果有一定的影响。较小的batch_size可以使模型更频繁地更新参数，从而加速模型收敛。但是，过小的batch_size可能会导致模型的收敛速度变慢或不稳定，同时还可能增加训练过程中的噪声，影响模型的泛化能力。
-较大的batch_size可以充分利用GPU等硬件设备的计算能力，从而使模型训练速度更快，同时还可以平滑掉一些噪声，提高模型的泛化能力。但是，过大的batch_size会占用更多的内存，并可能导致梯度下降过程中出现瓶颈，导致模型训练过程不稳定。
-因此，在选择batch_size时，需要考虑到模型的规模、硬件设备的能力以及训练数据的规模等多个因素，并进行适当的实验和调整，以找到最优的batch_size值。
+The batch_size has an effect on the effect of the model. A smaller batch_size can make the model update parameters more frequently, thus accelerating the model convergence. However, too small batch_size may cause the convergence of the model to be slow or unstable, and may also increase the noise during the training process and affect the generalization ability of the model.
+A larger batch_size can make full use of the computational power of hardware devices such as GPU, thus making the model training faster, and also smoothing out some noise to improve the generalization ability of the model. However, too large batch_size will occupy more memory and may lead to bottlenecks in the gradient descent process, resulting in an unstable model training process.
+Therefore, when choosing the batch_size, several factors such as the scale of the model, the capacity of the hardware device and the scale of the training data need to be taken into account, and appropriate experiments and adjustments need to be made to find the optimal batch_size value.
 
 ## Models
 large>base>small
-maxlen 和 batchsize 越大，模型越大，效果越好
+maxlen and batchsize 
 1. [Model 1](#model-1) 
 
 条件：

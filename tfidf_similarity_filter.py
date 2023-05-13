@@ -133,7 +133,7 @@ def filter(pairs_data_path, output_path):
 
 class filter2:
     def __init__(self):
-        self.dev_claims = json.load(open("./data/dev-claims.json"))
+        self.dev_claims = json.load(open("./data/test-claims-unlabelled.json"))
         self.evidences = json.load(open("./data/evidence.json"))
         self.vectorizer = TfidfVectorizer(stop_words='english')
         self.vectorizer.fit(list(self.evidences.values())+[self.dev_claims[c]['claim_text'] for c in self.dev_claims])
@@ -162,8 +162,9 @@ class filter2:
             potential_relevant_evidences = potential_relevant_evidences.drop(columns=['evidences'])
 
             potential_relevant_evidences.to_csv(output_path, index=False, header=False, mode='a')
-            if c == "claim-1834" or c == "claim-871" or c=="claim-139" or c == "claim-1407" or c=="claim-3070" or c=="claim-677" or c=="claim-3063":
-                print("----------",c)
+
+
+
             counter += 1
         print("Done for ", counter, " claims.")
         end = time.time()
@@ -181,8 +182,8 @@ class filter2:
 
 
 if __name__ == '__main__':
-    # filter("./data/test_claims_evi_pairs_for_predict.csv", "./data/similarity_filtered/predict_output.csv")
-    filter2().calculate("./data/similarity_filtered/temp_output_5000.csv", 5000)
+    # filter("./data/test_claims_evi_pairs_for_predict.csv", "./data/similarity_filtered/retrieve_output.csv")
+    filter2().calculate("./data/similarity_filtered/test_output_40000.csv", 40000)
 
     # df = pd.read_csv("data/similarity_filtered/dev_output_1000.csv", delimiter=',')
     # print(len(df))
